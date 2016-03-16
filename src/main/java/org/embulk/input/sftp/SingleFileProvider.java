@@ -45,7 +45,7 @@ public class SingleFileProvider
                 return file.getContent().getInputStream();
             }
             catch (FileSystemException ex) {
-                if (++count == maxConnectionRetry) {
+                if (++count == maxConnectionRetry || ex.getMessage().indexOf("Permission denied") > 0) {
                     throw ex;
                 }
                 log.warn("failed to connect sftp server: " + ex.getMessage(), ex);
