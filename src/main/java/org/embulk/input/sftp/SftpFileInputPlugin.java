@@ -37,7 +37,7 @@ public class SftpFileInputPlugin
 
         ConfigDiff configDiff = Exec.newConfigDiff();
 
-        List<String> files = new ArrayList<String>(task.getFiles());
+        List<String> files = new ArrayList<>(task.getFiles());
         if (files.isEmpty()) {
             if (task.getLastPath().isPresent()) {
                 configDiff.set("last_path", task.getLastPath().get());
