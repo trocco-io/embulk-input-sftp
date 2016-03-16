@@ -28,6 +28,7 @@ public class SftpFileInput
         implements TransactionalFileInput
 {
     private static final Logger log = Exec.getLogger(SftpFileInput.class);
+    private static boolean isMatchLastKey = false;
 
     public SftpFileInput(PluginTask task, int taskIndex)
     {
@@ -124,10 +125,10 @@ public class SftpFileInput
         return fsOptions;
     }
 
-    public static String getSftpFileUri(PluginTask task)
+    public static String getSftpFileUri(PluginTask task, String path)
     {
         try {
-            return new URI("sftp", initializeUserInfo(task), task.getHost(), task.getPort(), task.getPathPrefix(), null, null).toString();
+            return new URI("sftp", initializeUserInfo(task), task.getHost(), task.getPort(), path, null, null).toString();
         }
         catch (URISyntaxException ex) {
             throw new ConfigException(ex);
@@ -138,19 +139,25 @@ public class SftpFileInput
     {
         ImmutableList.Builder<String> builder = ImmutableList.builder();
         int maxConnectionRetry = task.getMaxConnectionRetry();
+        String lastKey = null;
 
         StandardFileSystemManager manager = null;
         int count = 0;
         while (true) {
             try {
                 manager = initializeStandardFileSystemManager();
-                FileObject files = manager.resolveFile(getSftpFileUri(task), initializeFsOptions(task));
-                String basename = FilenameUtils.getBaseName(task.getPathPrefix());
+                FileSystemOptions fsOptions = initializeFsOptions(task);
 
+                if (task.getLastPath().isPresent()) {
+                    lastKey = manager.resolveFile(getSftpFileUri(task, task.getLastPath().get()), fsOptions).toString();
+                }
+
+                FileObject files = manager.resolveFile(getSftpFileUri(task, task.getPathPrefix()), fsOptions);
+                String basename = FilenameUtils.getBaseName(task.getPathPrefix());
                 if (files.isFolder()) {
                     for (FileObject f : files.getChildren()) {
                         if (f.isFile()) {
-                            addFileToList(builder, f.toString(), "");
+                            addFileToList(builder, f.toString(), "", lastKey);
                         }
                     }
                 }
@@ -158,7 +165,7 @@ public class SftpFileInput
                     FileObject parent = files.getParent();
                     for (FileObject f : parent.getChildren()) {
                         if (f.isFile()) {
-                            addFileToList(builder, f.toString(), basename);
+                            addFileToList(builder, f.toString(), basename, lastKey);
                         }
                     }
                 }
@@ -189,16 +196,32 @@ public class SftpFileInput
         }
     }
 
-    private static void addFileToList(ImmutableList.Builder<String> builder, String fileName, String basename)
+    private static void addFileToList(ImmutableList.Builder<String> builder, String fileName, String basename, String lastKey)
     {
         if (!basename.isEmpty()) {
             String remoteBasename = FilenameUtils.getBaseName(fileName);
             if (remoteBasename.startsWith(basename)) {
+                if (lastKey != null && !isMatchLastKey) {
+                    if (!fileName.equals(lastKey)) {
+                        return;
+                    }
+                    else {
+                        isMatchLastKey = true;
+                    }
+                }
                 builder.add(fileName);
                 log.info("add file to the request list: {}", fileName);
             }
         }
         else {
+            if (lastKey != null && !isMatchLastKey) {
+                if (!fileName.equals(lastKey)) {
+                    return;
+                }
+                else {
+                    isMatchLastKey = true;
+                }
+            }
             builder.add(fileName);
             log.info("add file to the request list: {}", fileName);
         }
