@@ -8,10 +8,8 @@ import org.embulk.config.Task;
 import org.embulk.spi.BufferAllocator;
 import org.embulk.spi.unit.LocalFile;
 
-import java.util.List;
-
 public interface PluginTask
-        extends Task
+        extends Task, FileList.Task
 {
     @Config("host")
     String getHost();
@@ -59,8 +57,8 @@ public interface PluginTask
     @ConfigDefault("null")
     Optional<ProxyTask> getProxy();
 
-    List<String> getFiles();
-    void setFiles(List<String> files);
+    FileList getFiles();
+    void setFiles(FileList files);
 
     @ConfigInject
     BufferAllocator getBufferAllocator();

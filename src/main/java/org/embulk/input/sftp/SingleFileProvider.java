@@ -10,13 +10,14 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Iterator;
 
 public class SingleFileProvider
         implements InputStreamFileInput.Provider
 {
     private final StandardFileSystemManager manager;
     private final FileSystemOptions fsOptions;
-    private final String key;
+    private final Iterator<String> iterator;
     private final int maxConnectionRetry;
     private boolean opened = false;
     private final Logger log = Exec.getLogger(SingleFileProvider.class);
@@ -25,17 +26,18 @@ public class SingleFileProvider
     {
         this.manager = manager;
         this.fsOptions = fsOptions;
-        this.key = task.getFiles().get(taskIndex);
+        this.iterator = task.getFiles().get(taskIndex).iterator();
         this.maxConnectionRetry = task.getMaxConnectionRetry();
     }
 
     @Override
     public InputStream openNext() throws IOException
     {
-        if (opened) {
+        if (opened || !iterator.hasNext()) {
             return null;
         }
         opened = true;
+        String key = iterator.next();
 
         int count = 0;
         while (true) {

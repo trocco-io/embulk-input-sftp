@@ -8,8 +8,6 @@ import org.embulk.spi.Exec;
 import org.embulk.spi.FileInputPlugin;
 import org.embulk.spi.TransactionalFileInput;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class SftpFileInputPlugin
@@ -23,7 +21,7 @@ public class SftpFileInputPlugin
         // list files recursively
         task.setFiles(SftpFileInput.listFilesByPrefix(task));
         // number of processors is same with number of files
-        return resume(task.dump(), task.getFiles().size(), control);
+        return resume(task.dump(), task.getFiles().getTaskCount(), control);
     }
 
     @Override
@@ -32,21 +30,10 @@ public class SftpFileInputPlugin
                              FileInputPlugin.Control control)
     {
         PluginTask task = taskSource.loadTask(PluginTask.class);
-
         control.run(taskSource, taskCount);
 
         ConfigDiff configDiff = Exec.newConfigDiff();
-
-        List<String> files = new ArrayList<>(task.getFiles());
-        if (files.isEmpty()) {
-            if (task.getLastPath().isPresent()) {
-                configDiff.set("last_path", task.getLastPath().get());
-            }
-        }
-        else {
-            Collections.sort(files);
-            configDiff.set("last_path", files.get(files.size() - 1));
-        }
+        configDiff.set("last_path", task.getFiles().getLastPath(task.getLastPath()));
 
         return configDiff;
     }
