@@ -148,7 +148,7 @@ public class SftpFileInput
                 manager = initializeStandardFileSystemManager();
                 FileSystemOptions fsOptions = initializeFsOptions(task);
 
-                if (task.getLastPath().isPresent()) {
+                if (task.getLastPath().isPresent() && !task.getLastPath().get().isEmpty()) {
                     lastKey = manager.resolveFile(getSftpFileUri(task, task.getLastPath().get()), fsOptions).toString();
                 }
 
