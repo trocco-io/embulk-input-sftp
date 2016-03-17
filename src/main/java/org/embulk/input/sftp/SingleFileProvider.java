@@ -2,6 +2,7 @@ package org.embulk.input.sftp;
 
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemException;
+import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.embulk.spi.Exec;
 import org.embulk.spi.util.InputStreamFileInput;
@@ -14,17 +15,17 @@ public class SingleFileProvider
         implements InputStreamFileInput.Provider
 {
     private final StandardFileSystemManager manager;
+    private final FileSystemOptions fsOptions;
     private final String key;
-    private final PluginTask task;
     private final int maxConnectionRetry;
     private boolean opened = false;
     private final Logger log = Exec.getLogger(SingleFileProvider.class);
 
-    public SingleFileProvider(PluginTask task, int taskIndex, StandardFileSystemManager manager)
+    public SingleFileProvider(PluginTask task, int taskIndex, StandardFileSystemManager manager, FileSystemOptions fsOptions)
     {
         this.manager = manager;
+        this.fsOptions = fsOptions;
         this.key = task.getFiles().get(taskIndex);
-        this.task = task;
         this.maxConnectionRetry = task.getMaxConnectionRetry();
     }
 
@@ -39,7 +40,7 @@ public class SingleFileProvider
         int count = 0;
         while (true) {
             try {
-                FileObject file = manager.resolveFile(key, SftpFileInput.initializeFsOptions(task));
+                FileObject file = manager.resolveFile(key, fsOptions);
                 log.info("Starting to download file {}", key);
 
                 return file.getContent().getInputStream();
