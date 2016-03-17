@@ -32,7 +32,7 @@ public class SftpFileInput
 
     public SftpFileInput(PluginTask task, int taskIndex)
     {
-        super(task.getBufferAllocator(), new SingleFileProvider(task, taskIndex, initializeStandardFileSystemManager()));
+        super(task.getBufferAllocator(), new SingleFileProvider(task, taskIndex, initializeStandardFileSystemManager(), initializeFsOptions(task)));
     }
 
     public void abort()
