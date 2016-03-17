@@ -2,7 +2,6 @@ package org.embulk.input.sftp;
 
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemException;
@@ -21,7 +20,6 @@ import org.slf4j.Logger;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.List;
 
 public class SftpFileInput
         extends InputStreamFileInput
@@ -135,9 +133,9 @@ public class SftpFileInput
         }
     }
 
-    public static List<String> listFilesByPrefix(PluginTask task)
+    public static FileList listFilesByPrefix(PluginTask task)
     {
-        ImmutableList.Builder<String> builder = ImmutableList.builder();
+        FileList.Builder builder = new FileList.Builder(task);
         int maxConnectionRetry = task.getMaxConnectionRetry();
         String lastKey = null;
 
@@ -157,7 +155,7 @@ public class SftpFileInput
                 if (files.isFolder()) {
                     for (FileObject f : files.getChildren()) {
                         if (f.isFile()) {
-                            addFileToList(builder, f.toString(), "", lastKey);
+                            addFileToList(builder, f.toString(), f.getContent().getSize(), "", lastKey);
                         }
                     }
                 }
@@ -165,7 +163,7 @@ public class SftpFileInput
                     FileObject parent = files.getParent();
                     for (FileObject f : parent.getChildren()) {
                         if (f.isFile()) {
-                            addFileToList(builder, f.toString(), basename, lastKey);
+                            addFileToList(builder, f.toString(), f.getContent().getSize(), basename, lastKey);
                         }
                     }
                 }
@@ -196,7 +194,7 @@ public class SftpFileInput
         }
     }
 
-    private static void addFileToList(ImmutableList.Builder<String> builder, String fileName, String basename, String lastKey)
+    private static void addFileToList(FileList.Builder builder, String fileName, long fileSize, String basename, String lastKey)
     {
         if (!basename.isEmpty()) {
             String remoteBasename = FilenameUtils.getBaseName(fileName);
@@ -209,8 +207,7 @@ public class SftpFileInput
                         isMatchLastKey = true;
                     }
                 }
-                builder.add(fileName);
-                log.info("add file to the request list: {}", fileName);
+                builder.add(fileName, fileSize);
             }
         }
         else {
@@ -222,8 +219,7 @@ public class SftpFileInput
                     isMatchLastKey = true;
                 }
             }
-            builder.add(fileName);
-            log.info("add file to the request list: {}", fileName);
+            builder.add(fileName, fileSize);
         }
     }
 
