@@ -158,7 +158,7 @@ public class FileList
 
             int index = entries.size();
             entries.add(new Entry(index, size));
-            log.info("add file to the request list: {}", index);
+            log.info("add file to the request list: {}", path);
 
             byte[] data = path.getBytes(StandardCharsets.UTF_8);
             castBuffer.putInt(0, data.length);

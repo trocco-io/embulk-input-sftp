@@ -1,6 +1,7 @@
 package org.embulk.input.sftp;
 
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.vfs2.FileObject;
@@ -130,6 +131,21 @@ public class SftpFileInput
         }
         catch (URISyntaxException ex) {
             throw new ConfigException(ex);
+        }
+    }
+
+    public static String getRelativePath(Optional<String> path)
+    {
+        try {
+            if (path.isPresent()) {
+                return new URI(path.get()).getPath();
+            }
+            else {
+                return null;
+            }
+        }
+        catch (URISyntaxException ex) {
+            return null;
         }
     }
 
