@@ -21,8 +21,6 @@ Reads files stored on remote server using SFTP
 - **path_prefix**: Prefix of output paths (string, required)
 - **path_match_pattern**: regexp to match file paths. If a file path doesn't match with this pattern, the file will be skipped (regexp string, optional)
 - **total_file_count_limit**: maximum number of files to read (integer, optional)
-- **file_ext**: Extension of output files (string, required)
-- **sequence_format**: Format for sequence part of output files (string, default: `".%03d.%02d"`)
 - **min_task_size (experimental)**: minimum size of a task. If this is larger than 0, one task includes multiple input files. This is useful if too many number of tasks impacts performance of output or executor plugins badly. (integer, optional)
 
 ### Proxy configuration
