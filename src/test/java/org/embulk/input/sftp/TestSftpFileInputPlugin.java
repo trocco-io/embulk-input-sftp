@@ -388,6 +388,7 @@ public class TestSftpFileInputPlugin
         while (true) {
             try {
                 StandardFileSystemManager manager = new StandardFileSystemManager();
+                manager.setClassLoader(TestSftpFileInputPlugin.class.getClassLoader());
                 manager.init();
 
                 FileObject localFile = manager.resolveFile(localPath);

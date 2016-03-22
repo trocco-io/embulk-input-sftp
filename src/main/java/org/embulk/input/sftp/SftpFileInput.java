@@ -56,6 +56,7 @@ public class SftpFileInput
         }
 
         StandardFileSystemManager manager = new StandardFileSystemManager();
+        manager.setClassLoader(SftpFileInput.class.getClassLoader());
         try {
             manager.init();
         }
