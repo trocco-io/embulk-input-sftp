@@ -16,9 +16,13 @@ import org.embulk.spi.Exec;
 import org.embulk.spi.TransactionalFileInput;
 import org.embulk.spi.unit.LocalFile;
 import org.embulk.spi.util.InputStreamFileInput;
+import org.embulk.spi.util.RetryExecutor.RetryGiveupException;
+import org.embulk.spi.util.RetryExecutor.Retryable;
 import org.slf4j.Logger;
+import static org.embulk.spi.util.RetryExecutor.retryExecutor;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -150,64 +154,81 @@ public class SftpFileInput
         }
     }
 
-    public static FileList listFilesByPrefix(PluginTask task)
+    public static FileList listFilesByPrefix(final PluginTask task)
     {
-        FileList.Builder builder = new FileList.Builder(task);
+        final FileList.Builder builder = new FileList.Builder(task);
         int maxConnectionRetry = task.getMaxConnectionRetry();
-        String lastKey = null;
 
-        StandardFileSystemManager manager = null;
-        int count = 0;
-        while (true) {
-            try {
-                manager = initializeStandardFileSystemManager();
-                FileSystemOptions fsOptions = initializeFsOptions(task);
+        try {
+            return retryExecutor()
+                    .withRetryLimit(maxConnectionRetry)
+                    .withInitialRetryWait(500)
+                    .withMaxRetryWait(30 * 1000)
+                    .runInterruptible(new Retryable<FileList>() {
+                        @Override
+                        public FileList call() throws IOException
+                        {
+                            String lastKey = null;
+                            log.info("Getting to download file list");
+                            StandardFileSystemManager manager = initializeStandardFileSystemManager();
+                            FileSystemOptions fsOptions = initializeFsOptions(task);
 
-                if (task.getLastPath().isPresent() && !task.getLastPath().get().isEmpty()) {
-                    lastKey = manager.resolveFile(getSftpFileUri(task, task.getLastPath().get()), fsOptions).toString();
-                }
+                            if (task.getLastPath().isPresent() && !task.getLastPath().get().isEmpty()) {
+                                lastKey = manager.resolveFile(getSftpFileUri(task, task.getLastPath().get()), fsOptions).toString();
+                            }
 
-                FileObject files = manager.resolveFile(getSftpFileUri(task, task.getPathPrefix()), fsOptions);
-                String basename = FilenameUtils.getBaseName(task.getPathPrefix());
-                if (files.isFolder()) {
-                    for (FileObject f : files.getChildren()) {
-                        if (f.isFile()) {
-                            addFileToList(builder, f.toString(), f.getContent().getSize(), "", lastKey);
+                            FileObject files = manager.resolveFile(getSftpFileUri(task, task.getPathPrefix()), fsOptions);
+                            String basename = FilenameUtils.getBaseName(task.getPathPrefix());
+                            if (files.isFolder()) {
+                                for (FileObject f : files.getChildren()) {
+                                    if (f.isFile()) {
+                                        addFileToList(builder, f.toString(), f.getContent().getSize(), "", lastKey);
+                                    }
+                                }
+                            }
+                            else {
+                                FileObject parent = files.getParent();
+                                for (FileObject f : parent.getChildren()) {
+                                    if (f.isFile()) {
+                                        addFileToList(builder, f.toString(), f.getContent().getSize(), basename, lastKey);
+                                    }
+                                }
+                            }
+                            return builder.build();
                         }
-                    }
-                }
-                else {
-                    FileObject parent = files.getParent();
-                    for (FileObject f : parent.getChildren()) {
-                        if (f.isFile()) {
-                            addFileToList(builder, f.toString(), f.getContent().getSize(), basename, lastKey);
-                        }
-                    }
-                }
-                return builder.build();
-            }
-            catch (FileSystemException ex) {
-                if (++count == maxConnectionRetry) {
-                    Throwables.propagate(ex);
-                }
-                log.warn("failed to connect sftp server: " + ex.getMessage(), ex);
 
-                try {
-                    long sleepTime = ((long) Math.pow(2, count) * 1000);
-                    log.warn("sleep in next connection retry: {} milliseconds", sleepTime);
-                    Thread.sleep(sleepTime); // milliseconds
-                }
-                catch (InterruptedException ex2) {
-                    // Ignore this exception because this exception is just about `sleep`.
-                    log.warn(ex2.getMessage(), ex2);
-                }
-                log.warn("retrying to connect sftp server: " + count + " times");
-            }
-            finally {
-                if (manager != null) {
-                    manager.close();
-                }
-            }
+                        @Override
+                        public boolean isRetryableException(Exception exception)
+                        {
+                            return true;
+                        }
+
+                        @Override
+                        public void onRetry(Exception exception, int retryCount, int retryLimit, int retryWait)
+                                throws RetryGiveupException
+                        {
+                            String message = String.format("SFTP GET request failed. Retrying %d/%d after %d seconds. Message: %s",
+                                    retryCount, retryLimit, retryWait / 1000, exception.getMessage());
+                            if (retryCount % 3 == 0) {
+                                log.warn(message, exception);
+                            }
+                            else {
+                                log.warn(message);
+                            }
+                        }
+
+                        @Override
+                        public void onGiveup(Exception firstException, Exception lastException)
+                                throws RetryGiveupException
+                        {
+                        }
+                    });
+        }
+        catch (RetryGiveupException ex) {
+            throw Throwables.propagate(ex.getCause());
+        }
+        catch (InterruptedException ex) {
+            throw Throwables.propagate(ex);
         }
     }
 
