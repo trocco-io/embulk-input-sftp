@@ -183,8 +183,8 @@ public class TestSftpFileInputPlugin
     @Test
     public void testListFiles() throws Exception
     {
-        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv");
-        uploadFile(Resources.getResource("sample_02.csv").getPath(), REMOTE_DIRECTORY + "sample_02.csv");
+        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
+        uploadFile(Resources.getResource("sample_02.csv").getPath(), REMOTE_DIRECTORY + "sample_02.csv", true);
 
         PluginTask task = config.loadConfig(PluginTask.class);
 
@@ -215,8 +215,8 @@ public class TestSftpFileInputPlugin
     @Test
     public void testSftpInputByOpen() throws Exception
     {
-        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv");
-        uploadFile(Resources.getResource("sample_02.csv").getPath(), REMOTE_DIRECTORY + "sample_02.csv");
+        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
+        uploadFile(Resources.getResource("sample_02.csv").getPath(), REMOTE_DIRECTORY + "sample_02.csv", true);
 
         PluginTask task = config.loadConfig(PluginTask.class);
         runner.transaction(config, new Control());
@@ -235,8 +235,8 @@ public class TestSftpFileInputPlugin
 //        try {
 //            proxyServer = createProxyServer(PROXY_PORT);
 //
-//            uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv");
-//            uploadFile(Resources.getResource("sample_02.csv").getPath(), REMOTE_DIRECTORY + "sample_02.csv");
+//            uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
+//            uploadFile(Resources.getResource("sample_02.csv").getPath(), REMOTE_DIRECTORY + "sample_02.csv", true);
 //
 //            ConfigSource config = Exec.newConfigSource()
 //                    .set("host", HOST)
@@ -269,8 +269,8 @@ public class TestSftpFileInputPlugin
     @Test
     public void testSftpInputByOpenTimeout() throws Exception
     {
-        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv");
-        uploadFile(Resources.getResource("sample_02.csv").getPath(), REMOTE_DIRECTORY + "sample_02.csv");
+        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
+        uploadFile(Resources.getResource("sample_02.csv").getPath(), REMOTE_DIRECTORY + "sample_02.csv", true);
 
         ConfigSource config = Exec.newConfigSource()
                 .set("host", HOST)
@@ -285,6 +285,29 @@ public class TestSftpFileInputPlugin
         exception.expect(RuntimeException.class);
         exception.expectCause(CoreMatchers.<Throwable>instanceOf(FileSystemException.class));
         exception.expectMessage("Could not connect to SFTP server");
+
+        runner.transaction(config, new Control());
+    }
+
+    @Test
+    public void testSftpInputByOpenFailWithRetry() throws Exception
+    {
+        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", false);
+        uploadFile(Resources.getResource("sample_02.csv").getPath(), REMOTE_DIRECTORY + "sample_02.csv", false);
+
+        ConfigSource config = Exec.newConfigSource()
+                .set("host", HOST)
+                .set("port", PORT)
+                .set("user", USERNAME)
+                .set("password", PASSWORD)
+                .set("path_prefix", REMOTE_DIRECTORY)
+                .set("max_connection_retry", 2)
+                .set("last_path", "")
+                .set("parser", parserConfig(schemaConfig()));
+
+        exception.expect(RuntimeException.class);
+        exception.expectCause(CoreMatchers.<Throwable>instanceOf(FileSystemException.class));
+        exception.expectMessage(CoreMatchers.containsString("Unknown message with code \"java.nio.file.AccessDeniedException"));
 
         runner.transaction(config, new Control());
     }
@@ -377,7 +400,7 @@ public class TestSftpFileInputPlugin
                 .start();
     }
 
-    private void uploadFile(String localPath, String remotePath) throws Exception
+    private void uploadFile(String localPath, String remotePath, boolean isReadable) throws Exception
     {
         PluginTask task = config.loadConfig(PluginTask.class);
 
@@ -394,6 +417,9 @@ public class TestSftpFileInputPlugin
                 FileObject localFile = manager.resolveFile(localPath);
                 FileObject remoteFile = manager.resolveFile(uri, fsOptions);
                 remoteFile.copyFrom(localFile, Selectors.SELECT_SELF);
+                if (!isReadable) {
+                    remoteFile.setReadable(false, false);
+                }
 
                 if (log.isDebugEnabled()) {
                     FileObject files = manager.resolveFile(SftpFileInput.getSftpFileUri(task, REMOTE_DIRECTORY));
