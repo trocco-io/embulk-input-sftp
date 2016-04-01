@@ -82,7 +82,7 @@ Gem::Specification.new do |spec|
   spec.description   = %[Reads files stored on remote server using SFTP.]
   spec.email         = ["satoshiakama@gmail.com"]
   spec.licenses      = ["Apache-2.0"]
-  spec.homepage      = "https://github.com/sakama/embulk-input-sftp"
+  spec.homepage      = "https://github.com/embulk/embulk-input-sftp"
 
   spec.files         = `git ls-files`.split("\n") + Dir["classpath/*.jar"]
   spec.test_files    = spec.files.grep(%r"^(test|spec)/")
