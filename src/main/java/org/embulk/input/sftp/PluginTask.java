@@ -49,6 +49,10 @@ public interface PluginTask
     @Config("path_prefix")
     String getPathPrefix();
 
+    @Config("incremental")
+    @ConfigDefault("true")
+    boolean getIncremental();
+
     @Config("last_path")
     @ConfigDefault("null")
     Optional<String> getLastPath();
