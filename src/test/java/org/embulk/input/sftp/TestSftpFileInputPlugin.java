@@ -124,6 +124,7 @@ public class TestSftpFileInputPlugin
 
         PluginTask task = config.loadConfig(PluginTask.class);
         assertEquals(22, task.getPort());
+        assertEquals(true, task.getIncremental());
         assertEquals(true, task.getUserDirIsRoot());
         assertEquals(600, task.getSftpConnectionTimeout());
         assertEquals(5, task.getMaxConnectionRetry());
@@ -171,6 +172,23 @@ public class TestSftpFileInputPlugin
             }
         });
         assertEquals("in/aa/a", configDiff.get(String.class, "last_path"));
+    }
+
+    @Test
+    public void testResumeIncrementalFalse()
+    {
+        ConfigSource newConfig = config.deepCopy().set("incremental", false);
+        PluginTask task = newConfig.loadConfig(PluginTask.class);
+        task.setFiles(createFileList(Arrays.asList("in/aa/a"), task));
+        ConfigDiff configDiff = plugin.resume(task.dump(), 0, new FileInputPlugin.Control()
+        {
+            @Override
+            public List<TaskReport> run(TaskSource taskSource, int taskCount)
+            {
+                return emptyTaskReports(taskCount);
+            }
+        });
+        assertEquals("{}", configDiff.toString());
     }
 
     @Test

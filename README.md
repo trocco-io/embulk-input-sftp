@@ -20,6 +20,7 @@ Reads files stored on remote server using SFTP
 - **user_directory_is_root**: (boolean, default: `true`)
 - **timeout**: sftp connection timeout seconds (integer, default: `600`)
 - **path_prefix**: Prefix of output paths (string, required)
+- **incremental**: enables incremental loading(boolean, optional. default: `true`). If incremental loading is enabled, config diff for the next execution will include `last_path` parameter so that next execution skips files before the path. Otherwise, `last_path` will not be included.
 - **path_match_pattern**: regexp to match file paths. If a file path doesn't match with this pattern, the file will be skipped (regexp string, optional)
 - **total_file_count_limit**: maximum number of files to read (integer, optional)
 - **min_task_size (experimental)**: minimum size of a task. If this is larger than 0, one task includes multiple input files. This is useful if too many number of tasks impacts performance of output or executor plugins badly. (integer, optional)
