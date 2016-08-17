@@ -53,7 +53,6 @@ public class SingleFileProvider
                         @Override
                         public InputStream call() throws FileSystemException
                         {
-                            log.info("Starting to download file {}", key);
                             FileObject file = manager.resolveFile(key, fsOptions);
                             return file.getContent().getInputStream();
                         }
