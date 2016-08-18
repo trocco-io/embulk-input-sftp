@@ -107,6 +107,7 @@ public class SftpFileInput
                 if (proxy.getHost().isPresent()) {
                     builder.setProxyHost(fsOptions, proxy.getHost().get());
                     builder.setProxyPort(fsOptions, proxy.getPort());
+                    log.info("Using proxy {}:{} proxy_type:{}", proxy.getHost().get(), proxy.getPort(), proxy.getType().toString());
                 }
 
                 if (proxy.getUser().isPresent()) {
@@ -132,7 +133,9 @@ public class SftpFileInput
     public static String getSftpFileUri(PluginTask task, String path)
     {
         try {
-            return new URI("sftp", initializeUserInfo(task), task.getHost(), task.getPort(), path, null, null).toString();
+            String uri = new URI("sftp", initializeUserInfo(task), task.getHost(), task.getPort(), path, null, null).toString();
+            log.info("Connecting to sftp://{}:***@{}:{}/", task.getUser(), task.getHost(), task.getPort());
+            return uri;
         }
         catch (URISyntaxException ex) {
             throw new ConfigException(ex);
