@@ -246,24 +246,20 @@ public class SftpFileInput
             String remoteBasename = FilenameUtils.getBaseName(fileName);
             if (remoteBasename.startsWith(basename)) {
                 if (lastKey != null && !isMatchLastKey) {
-                    if (!fileName.equals(lastKey)) {
-                        return;
-                    }
-                    else {
+                    if (fileName.equals(lastKey)) {
                         isMatchLastKey = true;
                     }
+                    return;
                 }
                 builder.add(fileName, fileSize);
             }
         }
         else {
             if (lastKey != null && !isMatchLastKey) {
-                if (!fileName.equals(lastKey)) {
-                    return;
-                }
-                else {
+                if (fileName.equals(lastKey)) {
                     isMatchLastKey = true;
                 }
+                return;
             }
             builder.add(fileName, fileSize);
         }
