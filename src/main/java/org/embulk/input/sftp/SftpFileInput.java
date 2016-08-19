@@ -25,6 +25,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 
 public class SftpFileInput
         extends InputStreamFileInput
@@ -183,7 +184,9 @@ public class SftpFileInput
                             FileObject files = manager.resolveFile(getSftpFileUri(task, task.getPathPrefix()), fsOptions);
                             String basename = FilenameUtils.getBaseName(task.getPathPrefix());
                             if (files.isFolder()) {
-                                for (FileObject f : files.getChildren()) {
+                                FileObject[] children = files.getChildren();
+                                Arrays.sort(children);
+                                for (FileObject f : children) {
                                     if (f.isFile()) {
                                         addFileToList(builder, f.toString(), f.getContent().getSize(), "", lastKey);
                                     }
@@ -191,7 +194,9 @@ public class SftpFileInput
                             }
                             else {
                                 FileObject parent = files.getParent();
-                                for (FileObject f : parent.getChildren()) {
+                                FileObject[] children = parent.getChildren();
+                                Arrays.sort(children);
+                                for (FileObject f : children) {
                                     if (f.isFile()) {
                                         addFileToList(builder, f.toString(), f.getContent().getSize(), basename, lastKey);
                                     }
@@ -241,24 +246,20 @@ public class SftpFileInput
             String remoteBasename = FilenameUtils.getBaseName(fileName);
             if (remoteBasename.startsWith(basename)) {
                 if (lastKey != null && !isMatchLastKey) {
-                    if (!fileName.equals(lastKey)) {
-                        return;
-                    }
-                    else {
+                    if (fileName.equals(lastKey)) {
                         isMatchLastKey = true;
                     }
+                    return;
                 }
                 builder.add(fileName, fileSize);
             }
         }
         else {
             if (lastKey != null && !isMatchLastKey) {
-                if (!fileName.equals(lastKey)) {
-                    return;
-                }
-                else {
+                if (fileName.equals(lastKey)) {
                     isMatchLastKey = true;
                 }
+                return;
             }
             builder.add(fileName, fileSize);
         }
