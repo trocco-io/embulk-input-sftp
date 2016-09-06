@@ -30,11 +30,15 @@ public class SftpFileInputPlugin
                              FileInputPlugin.Control control)
     {
         PluginTask task = taskSource.loadTask(PluginTask.class);
+        String lastPath = null;
+        if (task.getIncremental()) {
+            lastPath = SftpFileInput.getRelativePath(task, task.getFiles().getLastPath(task.getLastPath()));
+        }
         control.run(taskSource, taskCount);
 
         ConfigDiff configDiff = Exec.newConfigDiff();
-        if (task.getIncremental()) {
-            configDiff.set("last_path", SftpFileInput.getRelativePath(task.getFiles().getLastPath(task.getLastPath())));
+        if (task.getIncremental() && lastPath != null) {
+            configDiff.set("last_path", lastPath);
         }
 
         return configDiff;

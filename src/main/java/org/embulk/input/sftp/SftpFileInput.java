@@ -143,19 +143,82 @@ public class SftpFileInput
         }
     }
 
-    public static String getRelativePath(Optional<String> path)
+    public static String getRelativePath(PluginTask task, Optional<String> uri)
     {
         try {
-            if (path.isPresent()) {
-                return new URI(path.get()).getPath();
+            if (!uri.isPresent()) {
+                return null;
+            }
+            else if (task.getPassword().isPresent()) {
+                return getRelativePathFromURIwithPassword(task, uri);
             }
             else {
-                return null;
+                return new URI(uri.get()).getPath();
             }
         }
         catch (URISyntaxException ex) {
-            return null;
+            throw new ConfigException("Failed to generate last_path due to URI parse failure that contains invalid file path.", ex);
         }
+    }
+
+    private static String getRelativePathFromURIwithPassword(final PluginTask task, final Optional<String> uri)
+    {
+        try {
+            return retryExecutor()
+                    .withRetryLimit(task.getMaxConnectionRetry())
+                    .withInitialRetryWait(500)
+                    .withMaxRetryWait(30 * 1000)
+                    .runInterruptible(new Retryable<String>() {
+                        @Override
+                        public String call() throws URISyntaxException, IOException
+                        {
+                            log.info("Creating last_path from URI contains password in FileList.");
+                            StandardFileSystemManager manager = initializeStandardFileSystemManager();
+
+                            String prefix = new URI("sftp", initializeUserInfo(task), task.getHost(), task.getPort(), null, null, null).toString();
+                            prefix = manager.resolveFile(prefix).toString();
+                            // To avoid URI parse failure when password contains special characters
+                            String newUri = uri.get().replace(prefix, "sftp://user:password@example.com/");
+
+                            return new URI(newUri).getPath();
+                        }
+
+                        @Override
+                        public boolean isRetryableException(Exception exception)
+                        {
+                            if (exception instanceof URISyntaxException) {
+                                // Don't throw cause because URISyntaxException shows password
+                                throw new ConfigException("Failed to generate last_path due to URI parse failure that contains invalid file path or password.");
+                            }
+                            return true;
+                        }
+
+                        @Override
+                        public void onRetry(Exception exception, int retryCount, int retryLimit, int retryWait) throws RetryGiveupException
+                        {
+                            String message = String.format("SFTP List request failed. Retrying %d/%d after %d seconds. Message: %s",
+                                    retryCount, retryLimit, retryWait / 1000, exception.getMessage());
+                            if (retryCount % 3 == 0) {
+                                log.warn(message, exception);
+                            }
+                            else {
+                                log.warn(message);
+                            }
+                        }
+
+                        @Override
+                        public void onGiveup(Exception firstException, Exception lastException) throws RetryGiveupException
+                        {
+                        }
+                    });
+        }
+        catch (RetryGiveupException ex) {
+            throw new ConfigException("Failed to generate last_path due to FTP connection failure");
+        }
+        catch (InterruptedException ex) {
+            Throwables.propagate(ex);
+        }
+        return null;
     }
 
     public static FileList listFilesByPrefix(final PluginTask task)

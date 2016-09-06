@@ -227,7 +227,7 @@ public class TestSftpFileInputPlugin
 
         assertEquals(expected.get(0), actual.get(0));
         assertEquals(expected.get(1), actual.get(1));
-        assertEquals(SftpFileInput.getRelativePath(Optional.of(expected.get(1).get(0))), configDiff.get(String.class, "last_path"));
+        assertEquals(SftpFileInput.getRelativePath(task, Optional.of(expected.get(1).get(0))), configDiff.get(String.class, "last_path"));
     }
 
     @Test
@@ -371,6 +371,23 @@ public class TestSftpFileInputPlugin
 
         ProxyTask.ProxyType.setProxyType(builder, fsOptions, ProxyTask.ProxyType.STREAM);
         assertEquals(SftpFileSystemConfigBuilder.PROXY_STREAM, builder.getProxyType(fsOptions));
+    }
+
+    @Test
+    public void testGetRelativePath()
+    {
+        ConfigSource conf = config();
+        String expected = "/path/to/sample.csv";
+
+        conf.set("password", "ABCDE");
+        PluginTask task = config.loadConfig(PluginTask.class);
+        String uri = SftpFileInput.getSftpFileUri(task, "/path/to/sample.csv");
+        assertEquals(expected, SftpFileInput.getRelativePath(task, Optional.of(uri)));
+
+        conf.set("password", "ABCD#$¥!%'\"@?<>\\&/_^~|-=+-,{}[]()");
+        task = config.loadConfig(PluginTask.class);
+        uri = SftpFileInput.getSftpFileUri(task, "/path/to/sample.csv");
+        assertEquals(expected, SftpFileInput.getRelativePath(task, Optional.of(uri)));
     }
 
     private SshServer createSshServer(String host, int port, final String sshUsername, final String sshPassword)
