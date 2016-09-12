@@ -1,3 +1,6 @@
+## 0.2.1 - 2016-09-12
+* [maintenance] Fix last_path generation failure when password contains special chars [#15](https://github.com/sakama/embulk-input-sftp/pull/15)
+
 ## 0.2.0 - 2016-08-19
 
 * [new feature] Support incremental option [#11](https://github.com/sakama/embulk-input-sftp/pull/11)
