@@ -213,7 +213,7 @@ public class SftpFileInput
                     });
         }
         catch (RetryGiveupException ex) {
-            throw new ConfigException("Failed to generate last_path due to FTP connection failure");
+            throw new ConfigException("Failed to generate last_path due to SFTP connection failure");
         }
         catch (InterruptedException ex) {
             Throwables.propagate(ex);
