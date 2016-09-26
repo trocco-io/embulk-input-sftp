@@ -88,7 +88,7 @@ public class SftpFileInput
         try {
             SftpFileSystemConfigBuilder builder = SftpFileSystemConfigBuilder.getInstance();
             builder.setUserDirIsRoot(fsOptions, task.getUserDirIsRoot());
-            builder.setTimeout(fsOptions, task.getSftpConnectionTimeout());
+            builder.setTimeout(fsOptions, task.getSftpConnectionTimeout() * 1000);
             builder.setStrictHostKeyChecking(fsOptions, "no");
 
             if (task.getSecretKeyFile().isPresent()) {
