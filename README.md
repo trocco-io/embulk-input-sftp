@@ -15,7 +15,7 @@ Reads files stored on remote server using SFTP
 - **port**: (string, default: `22`)
 - **user**: (string, required)
 - **password**: (string, default: `null`)
-- **secret_key_file**: (string, default: `null`)
+- **secret_key_file**: (string, default: `null`). **OpenSSH** format is required.
 - **secret_key_passphrase**: (string, default: `""`)
 - **user_directory_is_root**: (boolean, default: `true`)
 - **timeout**: sftp connection timeout seconds (integer, default: `600`)
