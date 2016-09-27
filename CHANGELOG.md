@@ -1,3 +1,7 @@
+## 0.2.2 - 2016-09-26
+
+* [maintenance] Fix bug Use second as timetout setting instead of milli second [#18](https://github.com/embulk/embulk-input-sftp/pull/18)
+
 ## 0.2.1 - 2016-09-12
 * [maintenance] Fix last_path generation failure when password contains special chars [#15](https://github.com/sakama/embulk-input-sftp/pull/15)
 
