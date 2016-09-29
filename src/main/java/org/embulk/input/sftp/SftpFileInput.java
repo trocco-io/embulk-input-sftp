@@ -149,7 +149,7 @@ public class SftpFileInput
             if (!uri.isPresent()) {
                 return null;
             }
-            else if (task.getPassword().isPresent()) {
+            else if (!task.getSecretKeyFile().isPresent() && task.getPassword().isPresent()) {
                 return getRelativePathFromURIwithPassword(task, uri);
             }
             else {
