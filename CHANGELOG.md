@@ -1,3 +1,7 @@
+## 0.2.3 - 2016-09-30
+
+* [maintenance] Fix auth failure while generating last_path under limited case [#20](https://github.com/sakama/embulk-input-sftp/pull/20)
+
 ## 0.2.2 - 2016-09-26
 
 * [maintenance] Fix bug Use second as timetout setting instead of milli second [#18](https://github.com/embulk/embulk-input-sftp/pull/18)
