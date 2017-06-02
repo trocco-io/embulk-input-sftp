@@ -23,11 +23,7 @@ import org.apache.sshd.server.scp.ScpCommandFactory;
 import org.apache.sshd.server.session.ServerSession;
 import org.apache.sshd.server.subsystem.sftp.SftpSubsystemFactory;
 import org.embulk.EmbulkTestRuntime;
-import org.embulk.config.ConfigDiff;
-import org.embulk.config.ConfigException;
-import org.embulk.config.ConfigSource;
-import org.embulk.config.TaskReport;
-import org.embulk.config.TaskSource;
+import org.embulk.config.*;
 import org.embulk.spi.Exec;
 import org.embulk.spi.FileInputPlugin;
 import org.embulk.spi.FileInputRunner;
@@ -68,6 +64,9 @@ public class TestSftpFileInputPlugin
     @Rule
     public TemporaryFolder testFolder = new TemporaryFolder();
 
+    @Rule
+    public TemporaryFolder sshDirFolder = new TemporaryFolder();
+
     private Logger log = runtime.getExec().getLogger(TestSftpFileInputPlugin.class);
     private ConfigSource config;
     private SftpFileInputPlugin plugin;
@@ -87,11 +86,12 @@ public class TestSftpFileInputPlugin
     @Before
     public void createResources() throws Exception
     {
+        // set system property for ssh_dir
+        System.setProperty("vfs.sftp.sshdir", sshDirFolder.getRoot().getPath());
         config = config();
         plugin = new SftpFileInputPlugin();
         runner = new FileInputRunner(runtime.getInstance(SftpFileInputPlugin.class));
         output = new MockPageOutput();
-
         if (!log.isDebugEnabled()) {
             // TODO: change logging format: org.apache.commons.logging.Log
             System.setProperty("org.apache.commons.logging.Log", "org.apache.commons.logging.impl.NoOpLog");
@@ -162,7 +162,7 @@ public class TestSftpFileInputPlugin
     public void testResume()
     {
         PluginTask task = config.loadConfig(PluginTask.class);
-        task.setFiles(createFileList(Arrays.asList("in/aa/a"), task));
+        task.setFiles(createFileList(Arrays.asList("/in/aa/a"), task));
         ConfigDiff configDiff = plugin.resume(task.dump(), 0, new FileInputPlugin.Control()
         {
             @Override
@@ -171,7 +171,7 @@ public class TestSftpFileInputPlugin
                 return emptyTaskReports(taskCount);
             }
         });
-        assertEquals("in/aa/a", configDiff.get(String.class, "last_path"));
+        assertEquals("/in/aa/a", configDiff.get(String.class, "last_path"));
     }
 
     @Test
@@ -373,21 +373,58 @@ public class TestSftpFileInputPlugin
         assertEquals(SftpFileSystemConfigBuilder.PROXY_STREAM, builder.getProxyType(fsOptions));
     }
 
+    /**
+     * Test get relative path with special character password
+     */
     @Test
-    public void testGetRelativePath()
+    public void testGetRelativePathWithPassword()
     {
-        ConfigSource conf = config();
-        String expected = "/path/to/sample.csv";
+        ConfigSource conf = config.deepCopy();
+        String expected = "/path/to/sample !@#.csv";
 
         conf.set("password", "ABCDE");
-        PluginTask task = config.loadConfig(PluginTask.class);
-        String uri = SftpFileInput.getSftpFileUri(task, "/path/to/sample.csv");
+        PluginTask task = conf.loadConfig(PluginTask.class);
+        String uri = SftpFileInput.getSftpFileUri(task, "/path/to/sample !@#.csv");
         assertEquals(expected, SftpFileInput.getRelativePath(task, Optional.of(uri)));
 
         conf.set("password", "ABCD#$¥!%'\"@?<>\\&/_^~|-=+-,{}[]()");
-        task = config.loadConfig(PluginTask.class);
-        uri = SftpFileInput.getSftpFileUri(task, "/path/to/sample.csv");
+        task = conf.loadConfig(PluginTask.class);
+        uri = SftpFileInput.getSftpFileUri(task, "/path/to/sample !@#.csv");
         assertEquals(expected, SftpFileInput.getRelativePath(task, Optional.of(uri)));
+    }
+
+    @Test
+    public void testGetRelativePath() {
+        String expected = "/path/to/sample !@#.csv";
+        String path = "/path/to/sample !@#.csv";
+        config.loadConfig(PluginTask.class);
+        assertEquals(expected, SftpFileInput.getRelativePath(null, Optional.of(path)));
+    }
+
+    @Test(expected = ConfigException.class)
+    public void testGetRelativePathWithHttpScheme() {
+        String path = "http://host/path/to/sample !@#.csv";
+        config.loadConfig(PluginTask.class);
+        SftpFileInput.getRelativePath(null, Optional.of(path));
+    }
+
+    /**
+     * When user explicitly set path_prefix to a single file. we should add that file only
+     * @throws Exception
+     */
+    @Test
+    public void testListByPrefixWithSpecificPathPrefix() throws Exception {
+        ConfigSource conf = config.deepCopy();
+        conf.set("path_prefix", REMOTE_DIRECTORY + "sample_01.csv");
+        PluginTask pluginTask = conf.loadConfig(PluginTask.class);
+        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
+        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01 .csv", true);
+        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01ABC.csv", true);
+        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01DEF!@#.csv", true);
+        FileList fileList = SftpFileInput.listFilesByPrefix(pluginTask);
+        assertEquals(1, fileList.getTaskCount());
+        assertEquals("sftp://username:password@127.0.0.1:20022/home/username/unittest/sample_01.csv", fileList.get
+                (0).get(0));
     }
 
     private SshServer createSshServer(String host, int port, final String sshUsername, final String sshPassword)

@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemException;
 import org.apache.commons.vfs2.FileSystemOptions;
@@ -147,90 +148,26 @@ public class SftpFileInput
         }
     }
 
-    public static String getRelativePath(PluginTask task, Optional<String> uri)
-    {
+    public static String getRelativePath(PluginTask task, Optional<String> uri) {
         try {
             if (!uri.isPresent()) {
                 return null;
-            }
-            else if (!task.getSecretKeyFile().isPresent() && task.getPassword().isPresent()) {
-                return getRelativePathFromURIwithPassword(task, uri);
-            }
-            else {
+            } else {
                 String uriString = uri.get();
                 String scheme = UriParser.extractScheme(uriString);
-                if (scheme.equals("sftp")) {
-                    return SftpFileNameParser.getInstance().parseUri(null, null, uriString).getPath();
-                } else if (scheme.isEmpty()) {
+                if (StringUtils.isEmpty(scheme)) {
                     return GenericFileNameParser.getInstance().parseUri(null, null, uriString).getPath();
+
+                } else if (scheme.equals("sftp")) {
+                    return SftpFileNameParser.getInstance().parseUri(null, null, uriString).getPath();
+
                 } else {
                     throw new ConfigException("SFTP Plugin only support SFTP scheme");
                 }
             }
-        }
-        catch (FileSystemException ex) {
+        } catch (FileSystemException ex) {
             throw new ConfigException("Failed to generate last_path due to sftp file name parse failure", ex);
         }
-    }
-
-    private static String getRelativePathFromURIwithPassword(final PluginTask task, final Optional<String> uri)
-    {
-        try {
-            return retryExecutor()
-                    .withRetryLimit(task.getMaxConnectionRetry())
-                    .withInitialRetryWait(500)
-                    .withMaxRetryWait(30 * 1000)
-                    .runInterruptible(new Retryable<String>() {
-                        @Override
-                        public String call() throws URISyntaxException, IOException
-                        {
-                            log.info("Creating last_path from URI contains password in FileList.");
-                            StandardFileSystemManager manager = initializeStandardFileSystemManager();
-
-                            String prefix = new URI("sftp", initializeUserInfo(task), task.getHost(), task.getPort(), null, null, null).toString();
-                            prefix = manager.resolveFile(prefix).toString();
-                            // To avoid URI parse failure when password contains special characters
-                            String newUri = uri.get().replace(prefix, "sftp://user:password@example.com/");
-
-                            return new URI(newUri).getPath();
-                        }
-
-                        @Override
-                        public boolean isRetryableException(Exception exception)
-                        {
-                            if (exception instanceof URISyntaxException) {
-                                // Don't throw cause because URISyntaxException shows password
-                                throw new ConfigException("Failed to generate last_path due to URI parse failure that contains invalid file path or password.");
-                            }
-                            return true;
-                        }
-
-                        @Override
-                        public void onRetry(Exception exception, int retryCount, int retryLimit, int retryWait) throws RetryGiveupException
-                        {
-                            String message = String.format("SFTP List request failed. Retrying %d/%d after %d seconds. Message: %s",
-                                    retryCount, retryLimit, retryWait / 1000, exception.getMessage());
-                            if (retryCount % 3 == 0) {
-                                log.warn(message, exception);
-                            }
-                            else {
-                                log.warn(message);
-                            }
-                        }
-
-                        @Override
-                        public void onGiveup(Exception firstException, Exception lastException) throws RetryGiveupException
-                        {
-                        }
-                    });
-        }
-        catch (RetryGiveupException ex) {
-            throw new ConfigException("Failed to generate last_path due to SFTP connection failure");
-        }
-        catch (InterruptedException ex) {
-            Throwables.propagate(ex);
-        }
-        return null;
     }
 
     public static FileList listFilesByPrefix(final PluginTask task)
