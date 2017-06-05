@@ -1,3 +1,7 @@
+## 0.2.4 - 2017-06-05
+
+* [maintenance] Improve logic for remote file search with path_prefix  [#22](https://github.com/sakama/embulk-input-sftp/pull/22)
+
 ## 0.2.3 - 2016-09-30
 
 * [maintenance] Fix auth failure while generating last_path under limited case [#20](https://github.com/sakama/embulk-input-sftp/pull/20)
