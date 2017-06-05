@@ -23,7 +23,11 @@ import org.apache.sshd.server.scp.ScpCommandFactory;
 import org.apache.sshd.server.session.ServerSession;
 import org.apache.sshd.server.subsystem.sftp.SftpSubsystemFactory;
 import org.embulk.EmbulkTestRuntime;
-import org.embulk.config.*;
+import org.embulk.config.ConfigDiff;
+import org.embulk.config.ConfigException;
+import org.embulk.config.ConfigSource;
+import org.embulk.config.TaskReport;
+import org.embulk.config.TaskSource;
 import org.embulk.spi.Exec;
 import org.embulk.spi.FileInputPlugin;
 import org.embulk.spi.FileInputRunner;
@@ -394,7 +398,8 @@ public class TestSftpFileInputPlugin
     }
 
     @Test
-    public void testGetRelativePath() {
+    public void testGetRelativePath()
+    {
         String expected = "/path/to/sample !@#.csv";
         String path = "/path/to/sample !@#.csv";
         config.loadConfig(PluginTask.class);
@@ -402,7 +407,8 @@ public class TestSftpFileInputPlugin
     }
 
     @Test(expected = ConfigException.class)
-    public void testGetRelativePathWithHttpScheme() {
+    public void testGetRelativePathWithHttpScheme()
+    {
         String path = "http://host/path/to/sample !@#.csv";
         config.loadConfig(PluginTask.class);
         SftpFileInput.getRelativePath(null, Optional.of(path));
@@ -413,7 +419,8 @@ public class TestSftpFileInputPlugin
      * @throws Exception
      */
     @Test
-    public void testListByPrefixWithSpecificPathPrefix() throws Exception {
+    public void testListByPrefixWithSpecificPathPrefix() throws Exception
+    {
         ConfigSource conf = config.deepCopy();
         conf.set("path_prefix", REMOTE_DIRECTORY + "sample_01.csv");
         PluginTask pluginTask = conf.loadConfig(PluginTask.class);

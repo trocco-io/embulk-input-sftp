@@ -11,7 +11,6 @@ import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.apache.commons.vfs2.provider.UriParser;
 import org.apache.commons.vfs2.provider.local.GenericFileNameParser;
-import org.apache.commons.vfs2.provider.local.LocalFileNameParser;
 import org.apache.commons.vfs2.provider.sftp.IdentityInfo;
 import org.apache.commons.vfs2.provider.sftp.SftpFileNameParser;
 import org.apache.commons.vfs2.provider.sftp.SftpFileSystemConfigBuilder;
@@ -24,13 +23,14 @@ import org.embulk.spi.util.InputStreamFileInput;
 import org.embulk.spi.util.RetryExecutor.RetryGiveupException;
 import org.embulk.spi.util.RetryExecutor.Retryable;
 import org.slf4j.Logger;
-import static org.embulk.spi.util.RetryExecutor.retryExecutor;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+
+import static org.embulk.spi.util.RetryExecutor.retryExecutor;
 
 public class SftpFileInput
         extends InputStreamFileInput
@@ -148,24 +148,27 @@ public class SftpFileInput
         }
     }
 
-    public static String getRelativePath(PluginTask task, Optional<String> uri) {
+    public static String getRelativePath(PluginTask task, Optional<String> uri)
+    {
         try {
             if (!uri.isPresent()) {
                 return null;
-            } else {
+            }
+            else {
                 String uriString = uri.get();
                 String scheme = UriParser.extractScheme(uriString);
                 if (StringUtils.isEmpty(scheme)) {
                     return GenericFileNameParser.getInstance().parseUri(null, null, uriString).getPath();
-
-                } else if (scheme.equals("sftp")) {
+                }
+                else if (scheme.equals("sftp")) {
                     return SftpFileNameParser.getInstance().parseUri(null, null, uriString).getPath();
-
-                } else {
+                }
+                else {
                     throw new ConfigException("SFTP Plugin only support SFTP scheme");
                 }
             }
-        } catch (FileSystemException ex) {
+        }
+        catch (FileSystemException ex) {
             throw new ConfigException("Failed to generate last_path due to sftp file name parse failure", ex);
         }
     }
@@ -204,10 +207,12 @@ public class SftpFileInput
                                         addFileToList(builder, f.toString(), f.getContent().getSize(), "", lastKey);
                                     }
                                 }
-                            } else if (files.isFile()) {
+                            }
+                            else if (files.isFile()) {
                                 //path_prefix is a file then we just need to add that file
                                 addFileToList(builder, files.toString(), files.getContent().getSize(), "", lastKey);
-                            } else {
+                            }
+                            else {
                                 // path_prefix is neither file or folder, then we scan the parent folder to file path
                                 // that match the path_prefix basename
                                 FileObject parent = files.getParent();
