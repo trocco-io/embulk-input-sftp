@@ -4,11 +4,15 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemException;
 import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
+import org.apache.commons.vfs2.provider.UriParser;
+import org.apache.commons.vfs2.provider.local.GenericFileNameParser;
 import org.apache.commons.vfs2.provider.sftp.IdentityInfo;
+import org.apache.commons.vfs2.provider.sftp.SftpFileNameParser;
 import org.apache.commons.vfs2.provider.sftp.SftpFileSystemConfigBuilder;
 import org.embulk.config.ConfigException;
 import org.embulk.config.TaskReport;
@@ -19,13 +23,14 @@ import org.embulk.spi.util.InputStreamFileInput;
 import org.embulk.spi.util.RetryExecutor.RetryGiveupException;
 import org.embulk.spi.util.RetryExecutor.Retryable;
 import org.slf4j.Logger;
-import static org.embulk.spi.util.RetryExecutor.retryExecutor;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+
+import static org.embulk.spi.util.RetryExecutor.retryExecutor;
 
 public class SftpFileInput
         extends InputStreamFileInput
@@ -149,76 +154,23 @@ public class SftpFileInput
             if (!uri.isPresent()) {
                 return null;
             }
-            else if (!task.getSecretKeyFile().isPresent() && task.getPassword().isPresent()) {
-                return getRelativePathFromURIwithPassword(task, uri);
-            }
             else {
-                return new URI(uri.get()).getPath();
+                String uriString = uri.get();
+                String scheme = UriParser.extractScheme(uriString);
+                if (StringUtils.isEmpty(scheme)) {
+                    return GenericFileNameParser.getInstance().parseUri(null, null, uriString).getPath();
+                }
+                else if (scheme.equals("sftp")) {
+                    return SftpFileNameParser.getInstance().parseUri(null, null, uriString).getPath();
+                }
+                else {
+                    throw new ConfigException("SFTP Plugin only support SFTP scheme");
+                }
             }
         }
-        catch (URISyntaxException ex) {
-            throw new ConfigException("Failed to generate last_path due to URI parse failure that contains invalid file path.", ex);
+        catch (FileSystemException ex) {
+            throw new ConfigException("Failed to generate last_path due to sftp file name parse failure", ex);
         }
-    }
-
-    private static String getRelativePathFromURIwithPassword(final PluginTask task, final Optional<String> uri)
-    {
-        try {
-            return retryExecutor()
-                    .withRetryLimit(task.getMaxConnectionRetry())
-                    .withInitialRetryWait(500)
-                    .withMaxRetryWait(30 * 1000)
-                    .runInterruptible(new Retryable<String>() {
-                        @Override
-                        public String call() throws URISyntaxException, IOException
-                        {
-                            log.info("Creating last_path from URI contains password in FileList.");
-                            StandardFileSystemManager manager = initializeStandardFileSystemManager();
-
-                            String prefix = new URI("sftp", initializeUserInfo(task), task.getHost(), task.getPort(), null, null, null).toString();
-                            prefix = manager.resolveFile(prefix).toString();
-                            // To avoid URI parse failure when password contains special characters
-                            String newUri = uri.get().replace(prefix, "sftp://user:password@example.com/");
-
-                            return new URI(newUri).getPath();
-                        }
-
-                        @Override
-                        public boolean isRetryableException(Exception exception)
-                        {
-                            if (exception instanceof URISyntaxException) {
-                                // Don't throw cause because URISyntaxException shows password
-                                throw new ConfigException("Failed to generate last_path due to URI parse failure that contains invalid file path or password.");
-                            }
-                            return true;
-                        }
-
-                        @Override
-                        public void onRetry(Exception exception, int retryCount, int retryLimit, int retryWait) throws RetryGiveupException
-                        {
-                            String message = String.format("SFTP List request failed. Retrying %d/%d after %d seconds. Message: %s",
-                                    retryCount, retryLimit, retryWait / 1000, exception.getMessage());
-                            if (retryCount % 3 == 0) {
-                                log.warn(message, exception);
-                            }
-                            else {
-                                log.warn(message);
-                            }
-                        }
-
-                        @Override
-                        public void onGiveup(Exception firstException, Exception lastException) throws RetryGiveupException
-                        {
-                        }
-                    });
-        }
-        catch (RetryGiveupException ex) {
-            throw new ConfigException("Failed to generate last_path due to SFTP connection failure");
-        }
-        catch (InterruptedException ex) {
-            Throwables.propagate(ex);
-        }
-        return null;
     }
 
     public static FileList listFilesByPrefix(final PluginTask task)
@@ -247,6 +199,7 @@ public class SftpFileInput
                             FileObject files = manager.resolveFile(getSftpFileUri(task, task.getPathPrefix()), fsOptions);
                             String basename = FilenameUtils.getBaseName(task.getPathPrefix());
                             if (files.isFolder()) {
+                                //path_prefix is a folder, we add everything in that folder
                                 FileObject[] children = files.getChildren();
                                 Arrays.sort(children);
                                 for (FileObject f : children) {
@@ -255,7 +208,13 @@ public class SftpFileInput
                                     }
                                 }
                             }
+                            else if (files.isFile()) {
+                                //path_prefix is a file then we just need to add that file
+                                addFileToList(builder, files.toString(), files.getContent().getSize(), "", lastKey);
+                            }
                             else {
+                                // path_prefix is neither file or folder, then we scan the parent folder to file path
+                                // that match the path_prefix basename
                                 FileObject parent = files.getParent();
                                 FileObject[] children = parent.getChildren();
                                 Arrays.sort(children);
