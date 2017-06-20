@@ -197,7 +197,7 @@ public class SftpFileInput
                             }
 
                             FileObject files = manager.resolveFile(getSftpFileUri(task, task.getPathPrefix()), fsOptions);
-                            String basename = FilenameUtils.getBaseName(task.getPathPrefix());
+
                             if (files.isFolder()) {
                                 //path_prefix is a folder, we add everything in that folder
                                 FileObject[] children = files.getChildren();
@@ -218,9 +218,10 @@ public class SftpFileInput
                                 FileObject parent = files.getParent();
                                 FileObject[] children = parent.getChildren();
                                 Arrays.sort(children);
+                                String fileName = FilenameUtils.getName(task.getPathPrefix());
                                 for (FileObject f : children) {
                                     if (f.isFile()) {
-                                        addFileToList(builder, f.toString(), f.getContent().getSize(), basename, lastKey);
+                                        addFileToList(builder, f.toString(), f.getContent().getSize(), fileName, lastKey);
                                     }
                                 }
                             }

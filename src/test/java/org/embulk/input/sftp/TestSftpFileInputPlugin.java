@@ -235,6 +235,29 @@ public class TestSftpFileInputPlugin
     }
 
     @Test
+    public void testListFilesWithPathPrefixPointToFile() throws Exception
+    {
+        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
+        ConfigSource configSource = config.deepCopy();
+        configSource.set("path_prefix", REMOTE_DIRECTORY + "not_exist.csv");
+        PluginTask task = configSource.loadConfig(PluginTask.class);
+        FileList actual = (FileList) SftpFileInput.listFilesByPrefix(task);
+        assertEquals(0, actual.getTaskCount());
+    }
+
+    @Test
+    public void testListFilesWithPathPrefix() throws Exception
+    {
+        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
+        ConfigSource configSource = config.deepCopy();
+        configSource.set("path_prefix", REMOTE_DIRECTORY + "sample_01");
+        PluginTask task = configSource.loadConfig(PluginTask.class);
+        FileList actual = (FileList) SftpFileInput.listFilesByPrefix(task);
+        assertEquals(1, actual.getTaskCount());
+        assertEquals(actual.get(0).get(0), "sftp://username:password@127.0.0.1:20022/home/username/unittest/sample_01.csv");
+    }
+
+    @Test
     public void testSftpInputByOpen() throws Exception
     {
         uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
