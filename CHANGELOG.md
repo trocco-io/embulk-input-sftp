@@ -1,3 +1,7 @@
+## 0.2.5 - 2017-06-20
+
+* [maintenance] Fix bug path_prefix extension are removed [#23](https://github.com/sakama/embulk-input-sftp/pull/23)
+
 ## 0.2.4 - 2017-06-05
 
 * [maintenance] Improve logic for remote file search with path_prefix  [#22](https://github.com/sakama/embulk-input-sftp/pull/22)
