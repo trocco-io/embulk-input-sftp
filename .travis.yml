@@ -1,3 +1,4 @@
+dist: precise
 language: java
 
 jdk:
@@ -6,5 +7,11 @@ jdk:
   - openjdk7
 
 script:
-  - ./gradlew gem
-  - ./gradlew --info check jacocoTestReport
+  - ./gradlew test
+
+after_success:
+  - ./gradlew jacocoTestReport coveralls
+addons:
+  hosts:
+    - example.com
+  hostname: example.com
