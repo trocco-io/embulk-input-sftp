@@ -189,43 +189,49 @@ public class SftpFileInput
                         {
                             String lastKey = null;
                             log.info("Getting to download file list");
-                            StandardFileSystemManager manager = initializeStandardFileSystemManager();
-                            FileSystemOptions fsOptions = initializeFsOptions(task);
+                            StandardFileSystemManager manager = null;
+                            try {
+                                manager = initializeStandardFileSystemManager();
+                                FileSystemOptions fsOptions = initializeFsOptions(task);
 
-                            if (task.getLastPath().isPresent() && !task.getLastPath().get().isEmpty()) {
-                                lastKey = manager.resolveFile(getSftpFileUri(task, task.getLastPath().get()), fsOptions).toString();
-                            }
+                                if (task.getLastPath().isPresent() && !task.getLastPath().get().isEmpty()) {
+                                    lastKey = manager.resolveFile(getSftpFileUri(task, task.getLastPath().get()), fsOptions).toString();
+                                }
 
-                            FileObject files = manager.resolveFile(getSftpFileUri(task, task.getPathPrefix()), fsOptions);
+                                FileObject files = manager.resolveFile(getSftpFileUri(task, task.getPathPrefix()), fsOptions);
 
-                            if (files.isFolder()) {
-                                //path_prefix is a folder, we add everything in that folder
-                                FileObject[] children = files.getChildren();
-                                Arrays.sort(children);
-                                for (FileObject f : children) {
-                                    if (f.isFile()) {
-                                        addFileToList(builder, f.toString(), f.getContent().getSize(), "", lastKey);
+                                if (files.isFolder()) {
+                                    //path_prefix is a folder, we add everything in that folder
+                                    FileObject[] children = files.getChildren();
+                                    Arrays.sort(children);
+                                    for (FileObject f : children) {
+                                        if (f.isFile()) {
+                                            addFileToList(builder, f.toString(), f.getContent().getSize(), "", lastKey);
+                                        }
+                                    }
+                                } else if (files.isFile()) {
+                                    //path_prefix is a file then we just need to add that file
+                                    addFileToList(builder, files.toString(), files.getContent().getSize(), "", lastKey);
+                                } else {
+                                    // path_prefix is neither file or folder, then we scan the parent folder to file path
+                                    // that match the path_prefix basename
+                                    FileObject parent = files.getParent();
+                                    FileObject[] children = parent.getChildren();
+                                    Arrays.sort(children);
+                                    String fileName = FilenameUtils.getName(task.getPathPrefix());
+                                    for (FileObject f : children) {
+                                        if (f.isFile()) {
+                                            addFileToList(builder, f.toString(), f.getContent().getSize(), fileName, lastKey);
+                                        }
                                     }
                                 }
+                                return builder.build();
                             }
-                            else if (files.isFile()) {
-                                //path_prefix is a file then we just need to add that file
-                                addFileToList(builder, files.toString(), files.getContent().getSize(), "", lastKey);
-                            }
-                            else {
-                                // path_prefix is neither file or folder, then we scan the parent folder to file path
-                                // that match the path_prefix basename
-                                FileObject parent = files.getParent();
-                                FileObject[] children = parent.getChildren();
-                                Arrays.sort(children);
-                                String fileName = FilenameUtils.getName(task.getPathPrefix());
-                                for (FileObject f : children) {
-                                    if (f.isFile()) {
-                                        addFileToList(builder, f.toString(), f.getContent().getSize(), fileName, lastKey);
-                                    }
+                            finally {
+                                if (manager != null) {
+                                    manager.close();
                                 }
                             }
-                            return builder.build();
                         }
 
                         @Override
