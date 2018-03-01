@@ -56,6 +56,7 @@ public class SftpFileInput
     @Override
     public void close()
     {
+        super.close();
     }
 
     private static StandardFileSystemManager initializeStandardFileSystemManager()
