@@ -99,5 +99,8 @@ public class SingleFileProvider
     @Override
     public void close()
     {
+        if (manager != null) {
+            manager.close();
+        }
     }
 }
