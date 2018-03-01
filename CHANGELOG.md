@@ -1,3 +1,6 @@
+## 0.2.7 - 2018-03-02
+* [maintenance] Fix SFTP connection remaining problem [#27](https://github.com/sakama/embulk-input-sftp/pull/27)
+
 ## 0.2.6 - 2018-01-15
 - [maintenance] Upgrade "commons-vfs2", "com.jcraft:jsch" and "commons-io:commons-io"
   - https://github.com/embulk/embulk-input-sftp/pull/25
