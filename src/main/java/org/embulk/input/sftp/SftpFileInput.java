@@ -196,7 +196,12 @@ public class SftpFileInput
                                 FileSystemOptions fsOptions = initializeFsOptions(task);
 
                                 if (task.getLastPath().isPresent() && !task.getLastPath().get().isEmpty()) {
-                                    lastKey = manager.resolveFile(getSftpFileUri(task, task.getLastPath().get()), fsOptions).toString();
+                                    final FileObject remotedLastPath = manager.resolveFile(getSftpFileUri(task, task.getLastPath().get()), fsOptions);
+                                    if(remotedLastPath.exists()) {
+                                        lastKey = remotedLastPath.toString();
+                                    } else {
+                                        log.warn("Failed to load last_path due to non-existence in sftp, skip using last_path");
+                                    }
                                 }
 
                                 FileObject files = manager.resolveFile(getSftpFileUri(task, task.getPathPrefix()), fsOptions);
