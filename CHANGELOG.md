@@ -1,3 +1,6 @@
+## 0.2.8 - 2018-03-12
+* [maintenance] Fix SFTP non existent last_path [#28](https://github.com/embulk/embulk-input-sftp/pull/28)
+
 ## 0.2.7 - 2018-03-02
 * [maintenance] Fix SFTP connection remaining problem [#27](https://github.com/sakama/embulk-input-sftp/pull/27)
 
