@@ -197,9 +197,10 @@ public class SftpFileInput
 
                                 if (task.getLastPath().isPresent() && !task.getLastPath().get().isEmpty()) {
                                     final FileObject remotedLastPath = manager.resolveFile(getSftpFileUri(task, task.getLastPath().get()), fsOptions);
-                                    if(remotedLastPath.exists()) {
+                                    if (remotedLastPath.exists()) {
                                         lastKey = remotedLastPath.toString();
-                                    } else {
+                                    }
+                                    else {
                                         log.warn("Failed to load last_path due to non-existence in sftp, skip using last_path");
                                     }
                                 }
@@ -215,10 +216,12 @@ public class SftpFileInput
                                             addFileToList(builder, f.toString(), f.getContent().getSize(), "", lastKey);
                                         }
                                     }
-                                } else if (files.isFile()) {
+                                }
+                                else if (files.isFile()) {
                                     //path_prefix is a file then we just need to add that file
                                     addFileToList(builder, files.toString(), files.getContent().getSize(), "", lastKey);
-                                } else {
+                                }
+                                else {
                                     // path_prefix is neither file or folder, then we scan the parent folder to file path
                                     // that match the path_prefix basename
                                     FileObject parent = files.getParent();
