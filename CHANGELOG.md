@@ -1,3 +1,6 @@
+## 0.2.9 - 2018-04-20
+* [maintenance] Throw ConfigException when process fails with "com.jcraft.jsch.JSchException: Auth fail" [#29](https://github.com/embulk/embulk-input-sftp/pull/29) 
+
 ## 0.2.8 - 2018-03-12
 * [maintenance] Fix SFTP non existent last_path [#28](https://github.com/embulk/embulk-input-sftp/pull/28)
 
