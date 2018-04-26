@@ -1,3 +1,6 @@
+## 0.2.10 - 2018-04-26
+* [maintenance] Add validation for "host" and "proxy.host" [#31](https://github.com/embulk/embulk-input-sftp/pull/31)
+
 ## 0.2.9 - 2018-04-20
 * [maintenance] Throw ConfigException when process fails with "com.jcraft.jsch.JSchException: Auth fail" [#29](https://github.com/embulk/embulk-input-sftp/pull/29) 
 
