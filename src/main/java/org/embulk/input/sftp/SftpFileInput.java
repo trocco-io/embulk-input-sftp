@@ -3,7 +3,6 @@ package org.embulk.input.sftp;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
-import com.jcraft.jsch.JSchException;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.vfs2.FileObject;
@@ -138,6 +137,20 @@ public class SftpFileInput
         return fsOptions;
     }
 
+    public static void validateHost(PluginTask task)
+    {
+        if (task.getHost().contains("%s")) {
+            throw new ConfigException("'host' can't contain spaces");
+        }
+        getSftpFileUri(task, "/");
+
+        if (task.getProxy().isPresent() && task.getProxy().get().getHost().isPresent()) {
+            if (task.getProxy().get().getHost().get().contains("%s")) {
+                throw new ConfigException("'proxy.host' can't contains spaces");
+            }
+        }
+    }
+
     public static String getSftpFileUri(PluginTask task, String path)
     {
         try {
@@ -146,7 +159,9 @@ public class SftpFileInput
             return uri;
         }
         catch (URISyntaxException ex) {
-            throw new ConfigException(ex);
+            String message = String.format("URISyntaxException was thrown: Illegal character in sftp://%s:******@%s:%s%s",
+                    task.getUser(), task.getHost(), task.getPort(), path);
+            throw new ConfigException(message);
         }
     }
 
@@ -247,6 +262,9 @@ public class SftpFileInput
                         @Override
                         public boolean isRetryableException(Exception exception)
                         {
+                            if (exception instanceof ConfigException) {
+                                return false;
+                            }
                             return true;
                         }
 
@@ -270,7 +288,7 @@ public class SftpFileInput
                         {
                             // Generally, Auth fail should be caught and throw ConfigException when first retry. But this library is a bit unstable.
                             // So we throw ConfigException after all retries are completed
-                            if (lastException.getCause().getCause() != null) {
+                            if (lastException.getCause() != null && lastException.getCause().getCause() != null) {
                                 Throwable cause = lastException.getCause().getCause();
                                 if (cause.getMessage().contains("Auth fail")) {
                                     throw new ConfigException(lastException);
