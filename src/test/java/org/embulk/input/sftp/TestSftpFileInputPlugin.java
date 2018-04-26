@@ -162,6 +162,20 @@ public class TestSftpFileInputPlugin
         runner.transaction(config, new Control());
     }
 
+    @Test(expected = ConfigException.class)
+    public void checkDefaultValuesHostIsInvalid()
+    {
+        ConfigSource config = Exec.newConfigSource()
+                .set("host", HOST + " ")
+                .set("user", null)
+                .set("password", PASSWORD)
+                .set("path_prefix", "")
+                .set("last_path", "")
+                .set("parser", parserConfig(schemaConfig()));
+
+        runner.transaction(config, new Control());
+    }
+
     @Test
     public void testResume()
     {

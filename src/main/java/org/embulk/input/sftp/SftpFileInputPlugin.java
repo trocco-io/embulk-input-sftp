@@ -17,6 +17,7 @@ public class SftpFileInputPlugin
     public ConfigDiff transaction(ConfigSource config, FileInputPlugin.Control control)
     {
         PluginTask task = config.loadConfig(PluginTask.class);
+        SftpFileInput.validateHost(task);
 
         // list files recursively
         task.setFiles(SftpFileInput.listFilesByPrefix(task));

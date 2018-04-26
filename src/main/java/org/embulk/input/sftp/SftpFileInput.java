@@ -138,6 +138,20 @@ public class SftpFileInput
         return fsOptions;
     }
 
+    public static void validateHost(PluginTask task)
+    {
+        if (task.getHost().contains("%s")) {
+            throw new ConfigException("'host' can't contain spaces");
+        }
+        getSftpFileUri(task, "/");
+
+        if (task.getProxy().isPresent() && task.getProxy().get().getHost().isPresent()) {
+            if (task.getProxy().get().getHost().get().contains("%s")) {
+                throw new ConfigException("'proxy.host' can't contains spaces");
+            }
+        }
+    }
+
     public static String getSftpFileUri(PluginTask task, String path)
     {
         try {
