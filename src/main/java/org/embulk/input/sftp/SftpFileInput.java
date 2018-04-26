@@ -160,7 +160,9 @@ public class SftpFileInput
             return uri;
         }
         catch (URISyntaxException ex) {
-            throw new ConfigException(ex);
+            String message = String.format("URISyntaxException was thrown: Illegal character in sftp://%s:******@%s:%s%s",
+                    task.getUser(), task.getHost(), task.getPort(), path);
+            throw new ConfigException(message);
         }
     }
 
