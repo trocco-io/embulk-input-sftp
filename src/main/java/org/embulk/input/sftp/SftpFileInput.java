@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 
 import static org.embulk.spi.util.RetryExecutor.retryExecutor;
 
@@ -139,13 +140,14 @@ public class SftpFileInput
 
     public static void validateHost(PluginTask task)
     {
-        if (task.getHost().contains("%s")) {
+        Pattern pattern = Pattern.compile("\\s");
+        if (pattern.matcher(task.getHost()).find()) {
             throw new ConfigException("'host' can't contain spaces");
         }
         getSftpFileUri(task, "/");
 
         if (task.getProxy().isPresent() && task.getProxy().get().getHost().isPresent()) {
-            if (task.getProxy().get().getHost().get().contains("%s")) {
+            if (pattern.matcher(task.getProxy().get().getHost().get()).find()) {
                 throw new ConfigException("'proxy.host' can't contains spaces");
             }
         }
