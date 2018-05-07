@@ -1,3 +1,6 @@
+## 0.2.11 - 2018-05-07
+* [maintenance] Use java.util.regex.Pattern for host name validation [#32](https://github.com/embulk/embulk-input-sftp/pull/32)
+
 ## 0.2.10 - 2018-04-26
 * [maintenance] Add validation for "host" and "proxy.host" [#31](https://github.com/embulk/embulk-input-sftp/pull/31)
 
