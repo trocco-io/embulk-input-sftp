@@ -56,6 +56,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class TestSftpFileInputPlugin
 {
@@ -246,6 +247,36 @@ public class TestSftpFileInputPlugin
         assertEquals(expected.get(0), actual.get(0));
         assertEquals(expected.get(1), actual.get(1));
         assertEquals(SftpFileInput.getRelativePath(task, Optional.of(expected.get(1).get(0))), configDiff.get(String.class, "last_path"));
+    }
+
+    @Test
+    public void testListFilesAuthFail() throws Exception
+    {
+        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
+        uploadFile(Resources.getResource("sample_02.csv").getPath(), REMOTE_DIRECTORY + "sample_02.csv", true);
+
+        PluginTask task = config.deepCopy().set("user", "wrong_user").loadConfig(PluginTask.class);
+
+        plugin.transaction(config, new FileInputPlugin.Control() {
+            @Override
+            public List<TaskReport> run(TaskSource taskSource, int taskCount)
+            {
+                assertEquals(2, taskCount);
+                return emptyTaskReports(taskCount);
+            }
+        });
+
+        Method listFilesByPrefix = SftpFileInput.class.getDeclaredMethod("listFilesByPrefix", PluginTask.class);
+        listFilesByPrefix.setAccessible(true);
+        try {
+            listFilesByPrefix.invoke(plugin, task);
+            fail();
+        }
+        catch (Exception ex) {
+            Throwable cause = ex.getCause();
+            assertEquals(cause.getClass(), ConfigException.class);
+            assertEquals(cause.getCause().getCause().getCause().getMessage(), "Auth fail");
+        }
     }
 
     @Test
