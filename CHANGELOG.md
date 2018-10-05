@@ -1,3 +1,6 @@
+## 0.2.12 - 2018-10-05
+* [maintenance] Give up processing and throw ConfigException when "Auth fail" first appears [#33](https://github.com/embulk/embulk-input-sftp/pull/33)
+
 ## 0.2.11 - 2018-05-07
 * [maintenance] Use java.util.regex.Pattern for host name validation [#32](https://github.com/embulk/embulk-input-sftp/pull/32)
 
