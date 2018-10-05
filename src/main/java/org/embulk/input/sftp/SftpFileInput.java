@@ -264,6 +264,12 @@ public class SftpFileInput
                         @Override
                         public boolean isRetryableException(Exception exception)
                         {
+                            if (exception.getCause() != null && exception.getCause().getCause() != null) {
+                                Throwable cause = exception.getCause().getCause();
+                                if (cause.getMessage() != null && cause.getMessage().contains("Auth fail")) {
+                                    throw new ConfigException(exception);
+                                }
+                            }
                             if (exception instanceof ConfigException) {
                                 return false;
                             }
@@ -288,14 +294,6 @@ public class SftpFileInput
                         public void onGiveup(Exception firstException, Exception lastException)
                                 throws RetryGiveupException
                         {
-                            // Generally, Auth fail should be caught and throw ConfigException when first retry. But this library is a bit unstable.
-                            // So we throw ConfigException after all retries are completed
-                            if (lastException.getCause() != null && lastException.getCause().getCause() != null) {
-                                Throwable cause = lastException.getCause().getCause();
-                                if (cause.getMessage().contains("Auth fail")) {
-                                    throw new ConfigException(lastException);
-                                }
-                            }
                         }
                     });
         }
