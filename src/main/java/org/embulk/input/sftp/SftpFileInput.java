@@ -104,7 +104,7 @@ public class SftpFileInput
                         task.getSecretKeyPassphrase().getBytes()
                 );
                 builder.setIdentityInfo(fsOptions, identityInfo);
-                log.info("set identity: {}", task.getSecretKeyFile().get());
+                log.info("set identity: {}", task.getSecretKeyFile().get().getPath());
             }
 
             if (task.getProxy().isPresent()) {
