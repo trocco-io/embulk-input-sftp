@@ -1,7 +1,5 @@
 package org.embulk.input.sftp;
 
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -29,6 +27,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import static org.embulk.spi.util.RetryExecutor.retryExecutor;
@@ -100,11 +100,11 @@ public class SftpFileInput
 
             if (task.getSecretKeyFile().isPresent()) {
                 IdentityInfo identityInfo = new IdentityInfo(
-                        new File((task.getSecretKeyFile().transform(localFileToPathString()).get())),
+                        new File((task.getSecretKeyFile().map(localFileToPathString()).get())),
                         task.getSecretKeyPassphrase().getBytes()
                 );
                 builder.setIdentityInfo(fsOptions, identityInfo);
-                log.info("set identity: {}", task.getSecretKeyFile().get());
+                log.info("set identity: {}", task.getSecretKeyFile().get().getPath());
             }
 
             if (task.getProxy().isPresent()) {
