@@ -7,13 +7,13 @@ import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.embulk.spi.Exec;
 import org.embulk.spi.util.InputStreamFileInput;
+import org.embulk.spi.util.InputStreamFileInput.InputStreamWithHints;
 import org.embulk.spi.util.RetryExecutor.RetryGiveupException;
 import org.embulk.spi.util.RetryExecutor.Retryable;
 import org.slf4j.Logger;
 import static org.embulk.spi.util.RetryExecutor.retryExecutor;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.util.Iterator;
 
@@ -36,7 +36,7 @@ public class SingleFileProvider
     }
 
     @Override
-    public InputStream openNext() throws IOException
+    public InputStreamWithHints openNextWithHints() throws IOException
     {
         if (opened || !iterator.hasNext()) {
             return null;
@@ -49,12 +49,13 @@ public class SingleFileProvider
                     .withRetryLimit(maxConnectionRetry)
                     .withInitialRetryWait(500)
                     .withMaxRetryWait(30 * 1000)
-                    .runInterruptible(new Retryable<InputStream>() {
+                    .runInterruptible(new Retryable<InputStreamWithHints>() {
                         @Override
-                        public InputStream call() throws FileSystemException
+                        public InputStreamWithHints call() throws FileSystemException
                         {
                             FileObject file = manager.resolveFile(key, fsOptions);
-                            return file.getContent().getInputStream();
+                            return new InputStreamWithHints(
+                                    file.getContent().getInputStream(), key);
                         }
 
                         @Override
