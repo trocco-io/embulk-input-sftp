@@ -3,6 +3,8 @@
 
 Reads files stored on remote server using SFTP
 
+embulk-input-sftp v0.3.0+ requires Embulk v0.9.12+
+
 ## Overview
 
 * **Plugin type**: file input

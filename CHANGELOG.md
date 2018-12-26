@@ -1,3 +1,6 @@
+## 0.3.0 - 2018-12-26
+[new feature] Use file name output feature in Embulk core to show file name in cmdout [#37](https://github.com/embulk/embulk-input-sftp/pull/37)
+
 ## 0.2.12 - 2018-10-05
 * [maintenance] Give up processing and throw ConfigException when "Auth fail" first appears [#33](https://github.com/embulk/embulk-input-sftp/pull/33)
 
