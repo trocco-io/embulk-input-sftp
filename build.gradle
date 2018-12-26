@@ -22,14 +22,14 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 dependencies {
-    compile  "org.embulk:embulk-core:0.9.11"
-    provided "org.embulk:embulk-core:0.9.11"
+    compile  "org.embulk:embulk-core:0.9.12"
+    provided "org.embulk:embulk-core:0.9.12"
     compile "org.apache.commons:commons-vfs2:2.2"
     compile "commons-io:commons-io:2.6"
     compile "com.jcraft:jsch:0.1.55"
     testCompile "junit:junit:4.+"
-    testCompile "org.embulk:embulk-core:0.9.11:tests"
-    testCompile "org.embulk:embulk-standards:0.9.11"
+    testCompile "org.embulk:embulk-core:0.9.12:tests"
+    testCompile "org.embulk:embulk-standards:0.9.12"
     testCompile "org.apache.sshd:apache-sshd:1.1.0"
     testCompile "org.littleshoot:littleproxy:1.1.0-beta1"
     testCompile "io.netty:netty-all:4.0.34.Final"
