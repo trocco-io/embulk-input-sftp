@@ -55,7 +55,7 @@ public class SingleFileProvider
                         {
                             FileObject file = manager.resolveFile(key, fsOptions);
                             return new InputStreamWithHints(
-                                    file.getContent().getInputStream(), key);
+                                    file.getContent().getInputStream(), file.getPublicURIString());
                         }
 
                         @Override
