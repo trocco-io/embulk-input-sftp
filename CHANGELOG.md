@@ -1,3 +1,6 @@
+## 0.3.1 - 2019-01-08
+* [maintenance] Hide password shown in log when parse failure happens [#39](https://github.com/embulk/embulk-input-sftp/pull/39)
+
 ## 0.3.0 - 2018-12-26
 [new feature] Use file name output feature in Embulk core to show file name in cmdout [#37](https://github.com/embulk/embulk-input-sftp/pull/37)
 
