@@ -266,8 +266,10 @@ public class SftpFileInput
                         {
                             if (exception.getCause() != null && exception.getCause().getCause() != null) {
                                 Throwable cause = exception.getCause().getCause();
-                                if (cause.getMessage() != null && cause.getMessage().contains("Auth fail")) {
-                                    throw new ConfigException(exception);
+                                if (cause.getMessage() != null) {
+                                    if (cause.getMessage().contains("Auth fail") || cause.getMessage().contains("Connection refused")) {
+                                        throw new ConfigException(exception);
+                                    }
                                 }
                             }
                             if (exception instanceof ConfigException) {
