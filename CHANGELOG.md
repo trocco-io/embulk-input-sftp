@@ -1,3 +1,5 @@
+## 0.3.3 - 2020-02-14
+* [maintenance] Build with the "org.embulk.embulk-plugins" Gradle plugin [#42](https://github.com/embulk/embulk-input-sftp/pull/42)
 ## 0.3.2 - 2019-07-25
 * [maintenance] Do not retry when "Connection refused" is returned and throw ConfigException [#40](https://github.com/embulk/embulk-input-sftp/pull/40)
 
