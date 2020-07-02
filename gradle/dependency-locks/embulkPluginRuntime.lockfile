@@ -2,6 +2,9 @@
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
 com.jcraft:jsch:0.1.55
+com.squareup.okhttp:okhttp:2.7.5
+com.squareup.okio:okio:1.6.0
 commons-io:commons-io:2.6
 commons-logging:commons-logging:1.2
-org.apache.commons:commons-vfs2:2.2
+org.apache.commons:commons-vfs2:2.6.0
+org.apache.hadoop:hadoop-hdfs-client:3.2.1

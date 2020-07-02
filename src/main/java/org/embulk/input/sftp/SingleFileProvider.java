@@ -11,6 +11,8 @@ import org.embulk.spi.util.InputStreamFileInput.InputStreamWithHints;
 import org.embulk.spi.util.RetryExecutor.RetryGiveupException;
 import org.embulk.spi.util.RetryExecutor.Retryable;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import static org.embulk.spi.util.RetryExecutor.retryExecutor;
 
 import java.io.IOException;
@@ -25,7 +27,7 @@ public class SingleFileProvider
     private final Iterator<String> iterator;
     private final int maxConnectionRetry;
     private boolean opened = false;
-    private final Logger log = Exec.getLogger(SingleFileProvider.class);
+    private final Logger log = LoggerFactory.getLogger(SingleFileProvider.class);
 
     public SingleFileProvider(PluginTask task, int taskIndex, StandardFileSystemManager manager, FileSystemOptions fsOptions)
     {
