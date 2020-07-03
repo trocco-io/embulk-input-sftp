@@ -177,7 +177,13 @@ public class SftpFileInput
                 String uriString = uri.get();
                 String scheme = UriParser.extractScheme(uriString);
                 if (StringUtils.isEmpty(scheme)) {
-                    return GenericFileNameParser.getInstance().parseUri(null, null, uriString).getPath();
+                    try {
+                        return GenericFileNameParser.getInstance().parseUri(null, null, uriString).getPath();
+                    }
+                    catch (IllegalArgumentException ignoreEx) {
+                        //backward compatible, old version of GenericFileNameParser didn't strictly verify the uri
+                        return uriString;
+                    }
                 }
                 else if (scheme.equals("sftp")) {
                     return SftpFileNameParser.getInstance().parseUri(null, null, uriString).getPath();
