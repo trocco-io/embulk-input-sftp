@@ -5,7 +5,6 @@ import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemException;
 import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
-import org.embulk.spi.Exec;
 import org.embulk.spi.util.InputStreamFileInput;
 import org.embulk.spi.util.InputStreamFileInput.InputStreamWithHints;
 import org.embulk.spi.util.RetryExecutor.RetryGiveupException;
