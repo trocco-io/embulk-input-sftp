@@ -1,3 +1,6 @@
+## 0.3.4 - 2020-10-09
+* [maintenance] Update commons vfs2 latest version (2.6.0) to fix timeout setting not working
+
 ## 0.3.3 - 2020-02-14
 * [maintenance] Build with the "org.embulk.embulk-plugins" Gradle plugin [#42](https://github.com/embulk/embulk-input-sftp/pull/42)
 ## 0.3.2 - 2019-07-25
