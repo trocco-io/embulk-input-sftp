@@ -470,7 +470,7 @@ public class TestSftpFileInputPlugin
     public void testGetRelativePath()
     {
         String expected = "/path/to/sample !@#.csv";
-        String path = "/path/to/sample !@#.csv";
+        String path = "/path/to/sample%20!@#.csv";
         config.loadConfig(PluginTask.class);
         assertEquals(expected, SftpFileInput.getRelativePath(null, Optional.of(path)));
     }

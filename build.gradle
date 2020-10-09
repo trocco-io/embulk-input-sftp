@@ -4,7 +4,7 @@ plugins {
     id "java"
     id "checkstyle"
     id "jacoco"
-    id "org.embulk.embulk-plugins" version "0.3.0"
+    id "org.embulk.embulk-plugins" version "0.4.2"
 }
 
 repositories {
@@ -13,7 +13,7 @@ repositories {
 }
 
 group = "org.embulk.input.sftp"
-version = "0.3.3"
+version = "0.3.4"
 description = "Reads files stored on remote server using SFTP."
 
 sourceCompatibility = 1.8
@@ -25,7 +25,10 @@ tasks.withType(JavaCompile) {
 
 dependencies {
     compileOnly "org.embulk:embulk-core:0.9.23"
-    compile "org.apache.commons:commons-vfs2:2.2"
+    compile("org.apache.commons:commons-vfs2:2.6.0") {
+        exclude group: "com.fasterxml.jackson.core", module: "jackson-databind"
+        exclude group: "com.fasterxml.jackson.core", module: "jackson-annotations"
+    }
     compile "commons-io:commons-io:2.6"
     compile "com.jcraft:jsch:0.1.55"
 
