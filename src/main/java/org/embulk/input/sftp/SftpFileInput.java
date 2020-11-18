@@ -21,7 +21,6 @@ import org.embulk.spi.util.InputStreamFileInput;
 import org.embulk.spi.util.RetryExecutor.RetryGiveupException;
 import org.embulk.spi.util.RetryExecutor.Retryable;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -38,7 +37,7 @@ public class SftpFileInput
         extends InputStreamFileInput
         implements TransactionalFileInput
 {
-    private static final Logger log = LoggerFactory.getLogger(SftpFileInput.class);
+    private static final Logger log = Exec.getLogger(SftpFileInput.class);
     private static boolean isMatchLastKey = false;
 
     public SftpFileInput(PluginTask task, int taskIndex)
@@ -96,9 +95,7 @@ public class SftpFileInput
         try {
             SftpFileSystemConfigBuilder builder = SftpFileSystemConfigBuilder.getInstance();
             builder.setUserDirIsRoot(fsOptions, task.getUserDirIsRoot());
-            final int timeoutMillis = task.getSftpConnectionTimeout() * 1000;
-            builder.setSessionTimeoutMillis(fsOptions, timeoutMillis);
-            builder.setConnectTimeoutMillis(fsOptions, timeoutMillis);
+            builder.setTimeout(fsOptions, task.getSftpConnectionTimeout() * 1000);
             builder.setStrictHostKeyChecking(fsOptions, "no");
 
             if (task.getSecretKeyFile().isPresent()) {
@@ -106,7 +103,7 @@ public class SftpFileInput
                         new File((task.getSecretKeyFile().map(localFileToPathString()).get())),
                         task.getSecretKeyPassphrase().getBytes()
                 );
-                builder.setIdentityProvider(fsOptions, identityInfo);
+                builder.setIdentityInfo(fsOptions, identityInfo);
                 log.info("set identity: {}", task.getSecretKeyFile().get().getPath());
             }
 
