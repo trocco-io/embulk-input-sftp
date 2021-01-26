@@ -1,3 +1,6 @@
+## 0.3.5 - 2021-02-02
+* [maintenance] Support OpenSsh key
+
 ## 0.3.4 - 2020-10-09
 * [maintenance] Update commons vfs2 latest version (2.6.0) to fix timeout setting not working
 
