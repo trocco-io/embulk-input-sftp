@@ -17,6 +17,7 @@ import org.apache.sshd.server.Command;
 import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.auth.password.PasswordAuthenticator;
 import org.apache.sshd.server.auth.pubkey.PublickeyAuthenticator;
+import org.apache.sshd.server.keyprovider.AbstractGeneratorHostKeyProvider;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
 import org.apache.sshd.server.scp.ScpCommandFactory;
 import org.apache.sshd.server.session.ServerSession;
@@ -46,8 +47,10 @@ import org.littleshoot.proxy.HttpProxyServer;
 import org.littleshoot.proxy.impl.DefaultHttpProxyServer;
 import org.slf4j.Logger;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.file.Paths;
 import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -514,7 +517,10 @@ public class TestSftpFileInputPlugin
         sshServer.setPort(port);
         sshServer.setSubsystemFactories(Collections.<NamedFactory<Command>>singletonList(new SftpSubsystemFactory()));
         sshServer.setCommandFactory(new ScpCommandFactory());
-        sshServer.setKeyPairProvider(new SimpleGeneratorHostKeyProvider());
+        File file = new File(SECRET_KEY_FILE);
+        AbstractGeneratorHostKeyProvider hostKeyProvider = new SimpleGeneratorHostKeyProvider(file);
+        hostKeyProvider.setAlgorithm("RSA");
+        sshServer.setKeyPairProvider(hostKeyProvider);
         sshServer.setPasswordAuthenticator(new PasswordAuthenticator()
         {
             @Override
