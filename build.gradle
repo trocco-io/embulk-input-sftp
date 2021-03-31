@@ -13,7 +13,7 @@ repositories {
 }
 
 group = "org.embulk.input.sftp"
-version = "0.3.5"
+version = "0.3.6"
 description = "Reads files stored on remote server using SFTP."
 
 sourceCompatibility = 1.8
@@ -25,7 +25,12 @@ tasks.withType(JavaCompile) {
 
 dependencies {
     compileOnly "org.embulk:embulk-core:0.9.23"
-    compile "org.apache.commons:commons-vfs2:2.2"
+    compile ("org.apache.commons:commons-vfs2:2.2") {
+        exclude group: "commons-logging", module: "commons-logging"
+    }
+    compile("org.slf4j:jcl-over-slf4j:1.7.12") {
+        exclude group: "org.slf4j", module: "slf4j-api"
+    }
     compile "commons-io:commons-io:2.6"
     compile "com.github.mwiede:jsch:0.1.60"
 
