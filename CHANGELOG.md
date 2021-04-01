@@ -1,3 +1,6 @@
+## 0.3.6 - 2021-04-06
+* [maintenance] Replace commons-logging by jcl-over-slf4j
+
 ## 0.3.5 - 2021-02-02
 * [maintenance] Support OpenSsh key
 
