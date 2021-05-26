@@ -1,0 +1,17 @@
+embulk-input-sftp
+Copyright 2016 The Embulk project
+
+The gem distribution of this product includes software developed in a part of the Embulk project (https://www.embulk.org/).
+It has been licenced under the Apache Software License, Version 2.0.
+
+The gem distribution of this product includes JARs of the Jackson project (https://github.com/FasterXML/jackson), as-is.
+They are licensed under the Apache Software License, Version 2.0.
+
+The gem distribution of this product includes JARs of the Jakarta Bean Validation API 1.1 (https://beanvalidation.org/1.1/), as-is.
+It is licensed under the Apache Software License, Version 2.0.
+
+The gem distribution of this product includes JARs of Apache Commons IO, Commons Logging, Commons Virtual File System, as-is.
+They are licensed under the Apache Software License, Version 2.0.
+
+The gem distribution of this product includes JARs of JSch - Java Secure Channel (http://www.jcraft.com/jsch/), as-is.
+It is licensed under a BSD-style license: http://www.jcraft.com/jsch/LICENSE.txt
