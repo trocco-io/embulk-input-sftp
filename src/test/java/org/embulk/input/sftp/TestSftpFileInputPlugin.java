@@ -1,5 +1,6 @@
 package org.embulk.input.sftp;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -22,53 +23,76 @@ import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
 import org.apache.sshd.server.scp.ScpCommandFactory;
 import org.apache.sshd.server.session.ServerSession;
 import org.apache.sshd.server.subsystem.sftp.SftpSubsystemFactory;
-import org.embulk.EmbulkTestRuntime;
+import org.embulk.EmbulkSystemProperties;
 import org.embulk.config.ConfigDiff;
 import org.embulk.config.ConfigException;
 import org.embulk.config.ConfigSource;
 import org.embulk.config.TaskReport;
 import org.embulk.config.TaskSource;
-import org.embulk.spi.Exec;
+import org.embulk.exec.PartialExecutionException;
+import org.embulk.formatter.csv.CsvFormatterPlugin;
+import org.embulk.output.file.LocalFileOutputPlugin;
+import org.embulk.parser.csv.CsvParserPlugin;
+import org.embulk.spi.Column;
+import org.embulk.spi.ColumnConfig;
 import org.embulk.spi.FileInputPlugin;
-import org.embulk.spi.FileInputRunner;
+import org.embulk.spi.FileOutputPlugin;
+import org.embulk.spi.FormatterPlugin;
 import org.embulk.spi.InputPlugin;
+import org.embulk.spi.ParserPlugin;
 import org.embulk.spi.Schema;
-import org.embulk.spi.TestPageBuilderReader.MockPageOutput;
-import org.embulk.spi.util.Pages;
-import org.embulk.standards.CsvParserPlugin;
+import org.embulk.test.TestingEmbulk;
+import org.embulk.util.config.ConfigMapperFactory;
 import org.hamcrest.CoreMatchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.littleshoot.proxy.HttpProxyServer;
 import org.littleshoot.proxy.impl.DefaultHttpProxyServer;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
+import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
 public class TestSftpFileInputPlugin
 {
-    @Rule
-    public EmbulkTestRuntime runtime = new EmbulkTestRuntime();
+    private static final EmbulkSystemProperties EMBULK_SYSTEM_PROPERTIES;
+
+    static {
+        final Properties properties = new Properties();
+        properties.setProperty("default_guess_plugins", "gzip,bzip2,json,csv");
+        EMBULK_SYSTEM_PROPERTIES = EmbulkSystemProperties.of(properties);
+    }
 
     @Rule
-    public ExpectedException exception = ExpectedException.none();
+    public TestingEmbulk embulk = TestingEmbulk.builder()
+            .setEmbulkSystemProperties(EMBULK_SYSTEM_PROPERTIES)
+            .registerPlugin(FormatterPlugin.class, "csv", CsvFormatterPlugin.class)
+            .registerPlugin(FileInputPlugin.class, "sftp", SftpFileInputPlugin.class)
+            .registerPlugin(FileOutputPlugin.class, "file", LocalFileOutputPlugin.class)
+            .registerPlugin(ParserPlugin.class, "csv", CsvParserPlugin.class)
+            .build();
 
     @Rule
     public TemporaryFolder testFolder = new TemporaryFolder();
@@ -76,12 +100,14 @@ public class TestSftpFileInputPlugin
     @Rule
     public TemporaryFolder sshDirFolder = new TemporaryFolder();
 
-    private Logger log = runtime.getExec().getLogger(TestSftpFileInputPlugin.class);
+    private static Logger log = LoggerFactory.getLogger(TestSftpFileInputPlugin.class);
+
     private ConfigSource config;
     private SftpFileInputPlugin plugin;
-    private FileInputRunner runner;
-    private MockPageOutput output;
     private SshServer sshServer;
+
+    private static final ConfigMapperFactory CONFIG_MAPPER_FACTORY = SftpFileInputPlugin.CONFIG_MAPPER_FACTORY;
+
     private static final String HOST = "127.0.0.1";
     private static final int PORT = 20022;
     private static final String USERNAME = "username";
@@ -99,8 +125,6 @@ public class TestSftpFileInputPlugin
         System.setProperty("vfs.sftp.sshdir", sshDirFolder.getRoot().getPath());
         config = config();
         plugin = new SftpFileInputPlugin();
-        runner = new FileInputRunner(runtime.getInstance(SftpFileInputPlugin.class));
-        output = new MockPageOutput();
         if (!log.isDebugEnabled()) {
             // TODO: change logging format: org.apache.commons.logging.Log
             System.setProperty("org.apache.commons.logging.Log", "org.apache.commons.logging.impl.NoOpLog");
@@ -123,7 +147,7 @@ public class TestSftpFileInputPlugin
     @Test
     public void checkDefaultValues()
     {
-        ConfigSource config = Exec.newConfigSource()
+        final ConfigSource config = CONFIG_MAPPER_FACTORY.newConfigSource()
                 .set("host", HOST)
                 .set("user", USERNAME)
                 .set("password", PASSWORD)
@@ -131,7 +155,7 @@ public class TestSftpFileInputPlugin
                 .set("last_path", "")
                 .set("parser", parserConfig(schemaConfig()));
 
-        PluginTask task = config.loadConfig(PluginTask.class);
+        final PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(config, PluginTask.class);
         assertEquals(22, task.getPort());
         assertEquals(true, task.getIncremental());
         assertEquals(true, task.getUserDirIsRoot());
@@ -139,10 +163,11 @@ public class TestSftpFileInputPlugin
         assertEquals(5, task.getMaxConnectionRetry());
     }
 
-    @Test(expected = ConfigException.class)
-    public void checkDefaultValuesHostIsNull()
+    @Test
+    public void checkDefaultValuesHostIsNull() throws IOException
     {
-        ConfigSource config = Exec.newConfigSource()
+        final ConfigSource config = CONFIG_MAPPER_FACTORY.newConfigSource()
+                .set("type", "sftp")
                 .set("host", null)
                 .set("user", USERNAME)
                 .set("password", PASSWORD)
@@ -150,13 +175,24 @@ public class TestSftpFileInputPlugin
                 .set("last_path", "")
                 .set("parser", parserConfig(schemaConfig()));
 
-        runner.transaction(config, new Control());
+        final Path out = embulk.createTempFile("csv");
+        try {
+            final TestingEmbulk.RunResult result = embulk.runInput(config, out);
+        }
+        catch (final PartialExecutionException ex) {
+            assertTrue(ex.getCause() instanceof ConfigException);
+            assertTrue(ex.getCause().getCause() instanceof JsonMappingException);
+            assertTrue(ex.getCause().getCause().getMessage().startsWith("Field 'host' is required but not set."));
+            return;
+        }
+        fail("Expected Exception was not thrown.");
     }
 
-    @Test(expected = ConfigException.class)
-    public void checkDefaultValuesUserIsNull()
+    @Test
+    public void checkDefaultValuesUserIsNull() throws IOException
     {
-        ConfigSource config = Exec.newConfigSource()
+        final ConfigSource config = CONFIG_MAPPER_FACTORY.newConfigSource()
+                .set("type", "sftp")
                 .set("host", HOST)
                 .set("user", null)
                 .set("password", PASSWORD)
@@ -164,29 +200,49 @@ public class TestSftpFileInputPlugin
                 .set("last_path", "")
                 .set("parser", parserConfig(schemaConfig()));
 
-        runner.transaction(config, new Control());
+        final Path out = embulk.createTempFile("csv");
+        try {
+            final TestingEmbulk.RunResult result = embulk.runInput(config, out);
+        }
+        catch (final PartialExecutionException ex) {
+            assertTrue(ex.getCause() instanceof ConfigException);
+            assertTrue(ex.getCause().getCause() instanceof JsonMappingException);
+            assertTrue(ex.getCause().getCause().getMessage().startsWith("Field 'user' is required but not set."));
+            return;
+        }
+        fail("Expected Exception was not thrown.");
     }
 
-    @Test(expected = ConfigException.class)
-    public void checkDefaultValuesHostIsInvalid()
+    @Test
+    public void checkDefaultValuesHostIsInvalid() throws IOException
     {
-        ConfigSource config = Exec.newConfigSource()
+        final ConfigSource config = CONFIG_MAPPER_FACTORY.newConfigSource()
+                .set("type", "sftp")
                 .set("host", HOST + " ")
-                .set("user", null)
+                .set("user", USERNAME)
                 .set("password", PASSWORD)
                 .set("path_prefix", "")
                 .set("last_path", "")
                 .set("parser", parserConfig(schemaConfig()));
 
-        runner.transaction(config, new Control());
+        final Path out = embulk.createTempFile("csv");
+        try {
+            final TestingEmbulk.RunResult result = embulk.runInput(config, out);
+        }
+        catch (final PartialExecutionException ex) {
+            assertTrue(ex.getCause() instanceof ConfigException);
+            assertTrue(ex.getCause().getMessage().startsWith("'host' can't contain spaces"));
+            return;
+        }
+        fail("Expected Exception was not thrown.");
     }
 
     @Test
     public void testResume()
     {
-        PluginTask task = config.loadConfig(PluginTask.class);
+        PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(config, PluginTask.class);
         task.setFiles(createFileList(Arrays.asList("/in/aa/a"), task));
-        ConfigDiff configDiff = plugin.resume(task.dump(), 0, new FileInputPlugin.Control()
+        ConfigDiff configDiff = plugin.resume(task.toTaskSource(), 0, new FileInputPlugin.Control()
         {
             @Override
             public List<TaskReport> run(TaskSource taskSource, int taskCount)
@@ -201,9 +257,9 @@ public class TestSftpFileInputPlugin
     public void testResumeIncrementalFalse()
     {
         ConfigSource newConfig = config.deepCopy().set("incremental", false);
-        PluginTask task = newConfig.loadConfig(PluginTask.class);
+        PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(newConfig, PluginTask.class);
         task.setFiles(createFileList(Arrays.asList("in/aa/a"), task));
-        ConfigDiff configDiff = plugin.resume(task.dump(), 0, new FileInputPlugin.Control()
+        ConfigDiff configDiff = plugin.resume(task.toTaskSource(), 0, new FileInputPlugin.Control()
         {
             @Override
             public List<TaskReport> run(TaskSource taskSource, int taskCount)
@@ -217,8 +273,8 @@ public class TestSftpFileInputPlugin
     @Test
     public void testCleanup()
     {
-        PluginTask task = config.loadConfig(PluginTask.class);
-        plugin.cleanup(task.dump(), 0, Lists.<TaskReport>newArrayList()); // no errors happens
+        PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(config, PluginTask.class);
+        plugin.cleanup(task.toTaskSource(), 0, Lists.<TaskReport>newArrayList()); // no errors happens
     }
 
     @Test
@@ -227,7 +283,7 @@ public class TestSftpFileInputPlugin
         uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
         uploadFile(Resources.getResource("sample_02.csv").getPath(), REMOTE_DIRECTORY + "sample_02.csv", true);
 
-        PluginTask task = config.loadConfig(PluginTask.class);
+        PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(config, PluginTask.class);
 
         List<String> fileList = Arrays.asList(
             SftpFileInput.getSftpFileUri(task, REMOTE_DIRECTORY + "sample_01.csv"),
@@ -259,7 +315,8 @@ public class TestSftpFileInputPlugin
         uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
         uploadFile(Resources.getResource("sample_02.csv").getPath(), REMOTE_DIRECTORY + "sample_02.csv", true);
 
-        PluginTask task = config.deepCopy().set("user", "wrong_user").loadConfig(PluginTask.class);
+        PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper()
+                .map(config.deepCopy().set("user", "wrong_user"), PluginTask.class);
 
         plugin.transaction(config, new FileInputPlugin.Control() {
             @Override
@@ -289,7 +346,7 @@ public class TestSftpFileInputPlugin
         uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
         ConfigSource configSource = config.deepCopy();
         configSource.set("path_prefix", REMOTE_DIRECTORY + "not_exist.csv");
-        PluginTask task = configSource.loadConfig(PluginTask.class);
+        PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(configSource, PluginTask.class);
         FileList actual = (FileList) SftpFileInput.listFilesByPrefix(task);
         assertEquals(0, actual.getTaskCount());
     }
@@ -300,7 +357,7 @@ public class TestSftpFileInputPlugin
         uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
         ConfigSource configSource = config.deepCopy();
         configSource.set("path_prefix", REMOTE_DIRECTORY + "sample_01");
-        PluginTask task = configSource.loadConfig(PluginTask.class);
+        PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(config, PluginTask.class);
         FileList actual = (FileList) SftpFileInput.listFilesByPrefix(task);
         assertEquals(1, actual.getTaskCount());
         assertEquals(actual.get(0).get(0), "sftp://username:password@127.0.0.1:20022/home/username/unittest/sample_01.csv");
@@ -312,14 +369,16 @@ public class TestSftpFileInputPlugin
         uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
         uploadFile(Resources.getResource("sample_02.csv").getPath(), REMOTE_DIRECTORY + "sample_02.csv", true);
 
-        PluginTask task = config.loadConfig(PluginTask.class);
-        runner.transaction(config, new Control());
+        PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(config, PluginTask.class);
+
+        final Path out = embulk.createTempFile("csv");
+        final TestingEmbulk.RunResult result = embulk.runInput(config, out);
 
         Method listFilesByPrefix = SftpFileInput.class.getDeclaredMethod("listFilesByPrefix", PluginTask.class);
         listFilesByPrefix.setAccessible(true);
         task.setFiles((FileList) listFilesByPrefix.invoke(plugin, task));
 
-        assertRecords(config, output);
+        assertArrayEquals(Files.readAllBytes(Paths.get(Resources.getResource("sample_out.csv").getPath())), Files.readAllBytes(out));
     }
 
 //    @Test
@@ -332,7 +391,7 @@ public class TestSftpFileInputPlugin
 //            uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
 //            uploadFile(Resources.getResource("sample_02.csv").getPath(), REMOTE_DIRECTORY + "sample_02.csv", true);
 //
-//            ConfigSource config = Exec.newConfigSource()
+//            ConfigSource config = CONFIG_MAPPER_FACTORY.newConfigSource()
 //                    .set("host", HOST)
 //                    .set("port", PORT)
 //                    .set("user", USERNAME)
@@ -342,7 +401,7 @@ public class TestSftpFileInputPlugin
 //                    .set("proxy", proxyConfig())
 //                    .set("parser", parserConfig(schemaConfig()));
 //
-//            PluginTask task = config.loadConfig(PluginTask.class);
+//            PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(config, PluginTask.class);
 //            runner.transaction(config, new Control());
 //
 //            Method listFilesByPrefix = SftpFileInput.class.getDeclaredMethod("listFilesByPrefix", PluginTask.class);
@@ -366,7 +425,8 @@ public class TestSftpFileInputPlugin
         uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
         uploadFile(Resources.getResource("sample_02.csv").getPath(), REMOTE_DIRECTORY + "sample_02.csv", true);
 
-        ConfigSource config = Exec.newConfigSource()
+        final ConfigSource config = CONFIG_MAPPER_FACTORY.newConfigSource()
+                .set("type", "sftp")
                 .set("host", HOST)
                 .set("port", PORT)
                 .set("user", "invalid-username")
@@ -376,11 +436,17 @@ public class TestSftpFileInputPlugin
                 .set("last_path", "")
                 .set("parser", parserConfig(schemaConfig()));
 
-        exception.expect(RuntimeException.class);
-        exception.expectCause(CoreMatchers.<Throwable>instanceOf(FileSystemException.class));
-        exception.expectMessage("Could not connect to SFTP server");
-
-        runner.transaction(config, new Control());
+        final Path out = embulk.createTempFile("csv");
+        try {
+            final TestingEmbulk.RunResult result = embulk.runInput(config, out);
+        }
+        catch (final PartialExecutionException ex) {
+            assertTrue(ex.getCause() instanceof RuntimeException);
+            assertTrue(ex.getCause().getCause() instanceof FileSystemException);
+            assertTrue(ex.getCause().getCause().getMessage().startsWith("Could not connect to SFTP server"));
+            return;
+        }
+        fail("Expected Exception was not thrown.");
     }
 
     @Test
@@ -389,7 +455,8 @@ public class TestSftpFileInputPlugin
         uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", false);
         uploadFile(Resources.getResource("sample_02.csv").getPath(), REMOTE_DIRECTORY + "sample_02.csv", false);
 
-        ConfigSource config = Exec.newConfigSource()
+        final ConfigSource config = CONFIG_MAPPER_FACTORY.newConfigSource()
+                .set("type", "sftp")
                 .set("host", HOST)
                 .set("port", PORT)
                 .set("user", USERNAME)
@@ -399,11 +466,17 @@ public class TestSftpFileInputPlugin
                 .set("last_path", "")
                 .set("parser", parserConfig(schemaConfig()));
 
-        exception.expect(RuntimeException.class);
-        exception.expectCause(CoreMatchers.<Throwable>instanceOf(FileSystemException.class));
-        exception.expectMessage(CoreMatchers.containsString("Unknown message with code \"java.nio.file.AccessDeniedException"));
-
-        runner.transaction(config, new Control());
+        final Path out = embulk.createTempFile("csv");
+        try {
+            final TestingEmbulk.RunResult result = embulk.runInput(config, out);
+        }
+        catch (final PartialExecutionException ex) {
+            assertTrue(ex.getCause() instanceof RuntimeException);
+            assertTrue(ex.getCause().getCause() instanceof FileSystemException);
+            assertTrue(ex.getCause().getCause().getMessage().startsWith("Unknown message with code \"java.nio.file.AccessDeniedException"));
+            return;
+        }
+        fail("Expected Exception was not thrown.");
     }
 
     @Test
@@ -435,7 +508,7 @@ public class TestSftpFileInputPlugin
     @Test
     public void testSetProxyType() throws Exception
     {
-        PluginTask task = config.loadConfig(PluginTask.class);
+        PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(config, PluginTask.class);
         FileSystemOptions fsOptions = SftpFileInput.initializeFsOptions(task);
         SftpFileSystemConfigBuilder builder = SftpFileSystemConfigBuilder.getInstance();
 
@@ -459,12 +532,12 @@ public class TestSftpFileInputPlugin
         String expected = "/path/to/sample !@#.csv";
 
         conf.set("password", "ABCDE");
-        PluginTask task = conf.loadConfig(PluginTask.class);
+        PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(conf, PluginTask.class);
         String uri = SftpFileInput.getSftpFileUri(task, "/path/to/sample !@#.csv");
         assertEquals(expected, SftpFileInput.getRelativePath(task, Optional.of(uri)));
 
         conf.set("password", "ABCD#$¥!%'\"@?<>\\&/_^~|-=+-,{}[]()");
-        task = conf.loadConfig(PluginTask.class);
+        task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(conf, PluginTask.class);
         uri = SftpFileInput.getSftpFileUri(task, "/path/to/sample !@#.csv");
         assertEquals(expected, SftpFileInput.getRelativePath(task, Optional.of(uri)));
     }
@@ -474,7 +547,7 @@ public class TestSftpFileInputPlugin
     {
         String expected = "/path/to/sample !@#.csv";
         String path = "/path/to/sample !@#.csv";
-        config.loadConfig(PluginTask.class);
+        CONFIG_MAPPER_FACTORY.createConfigMapper().map(config, PluginTask.class);
         assertEquals(expected, SftpFileInput.getRelativePath(null, Optional.of(path)));
     }
 
@@ -482,7 +555,7 @@ public class TestSftpFileInputPlugin
     public void testGetRelativePathWithHttpScheme()
     {
         String path = "http://host/path/to/sample !@#.csv";
-        config.loadConfig(PluginTask.class);
+        CONFIG_MAPPER_FACTORY.createConfigMapper().map(config, PluginTask.class);
         SftpFileInput.getRelativePath(null, Optional.of(path));
     }
 
@@ -495,7 +568,7 @@ public class TestSftpFileInputPlugin
     {
         ConfigSource conf = config.deepCopy();
         conf.set("path_prefix", REMOTE_DIRECTORY + "sample_01.csv");
-        PluginTask pluginTask = conf.loadConfig(PluginTask.class);
+        PluginTask pluginTask = CONFIG_MAPPER_FACTORY.createConfigMapper().map(conf, PluginTask.class);
         uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
         uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01 .csv", true);
         uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01ABC.csv", true);
@@ -556,7 +629,7 @@ public class TestSftpFileInputPlugin
 
     private void uploadFile(String localPath, String remotePath, boolean isReadable) throws Exception
     {
-        PluginTask task = config.loadConfig(PluginTask.class);
+        PluginTask task = CONFIG_MAPPER_FACTORY.createConfigMapper().map(config, PluginTask.class);
 
         FileSystemOptions fsOptions = SftpFileInput.initializeFsOptions(task);
         String uri = SftpFileInput.getSftpFileUri(task, remotePath);
@@ -618,28 +691,15 @@ public class TestSftpFileInputPlugin
     {
         ImmutableList.Builder<TaskReport> reports = new ImmutableList.Builder<>();
         for (int i = 0; i < taskCount; i++) {
-            reports.add(Exec.newTaskReport());
+            reports.add(CONFIG_MAPPER_FACTORY.newTaskReport());
         }
         return reports.build();
     }
 
-    private class Control
-            implements InputPlugin.Control
-    {
-        @Override
-        public List<TaskReport> run(TaskSource taskSource, Schema schema, int taskCount)
-        {
-            List<TaskReport> reports = new ArrayList<>();
-            for (int i = 0; i < taskCount; i++) {
-                reports.add(runner.run(taskSource, schema, i, output));
-            }
-            return reports;
-        }
-    }
-
     private ConfigSource config()
     {
-        return Exec.newConfigSource()
+        return CONFIG_MAPPER_FACTORY.newConfigSource()
+                .set("type", "sftp")
                 .set("host", HOST)
                 .set("port", PORT)
                 .set("user", USERNAME)
@@ -684,51 +744,5 @@ public class TestSftpFileInputPlugin
         builder.add(ImmutableMap.of("name", "comment", "type", "string"));
         builder.add(ImmutableMap.of("name", "json_column", "type", "json"));
         return builder.build();
-    }
-
-    private void assertRecords(ConfigSource config, MockPageOutput output)
-    {
-        List<Object[]> records = getRecords(config, output);
-        assertEquals(10, records.size());
-        {
-            Object[] record = records.get(0);
-            assertEquals(1L, record[0]);
-            assertEquals(32864L, record[1]);
-            assertEquals("2015-01-27 19:23:49 UTC", record[2].toString());
-            assertEquals("2015-01-27 00:00:00 UTC", record[3].toString());
-            assertEquals("embulk", record[4]);
-            assertEquals("{\"k\":true}", record[5].toString());
-        }
-
-        {
-            Object[] record = records.get(1);
-            assertEquals(2L, record[0]);
-            assertEquals(14824L, record[1]);
-            assertEquals("2015-01-27 19:01:23 UTC", record[2].toString());
-            assertEquals("2015-01-27 00:00:00 UTC", record[3].toString());
-            assertEquals("embulk jruby", record[4]);
-            assertEquals("{\"k\":1}", record[5].toString());
-        }
-
-        {
-            Object[] record = records.get(2);
-            assertEquals("{\"k\":1.23}", record[5].toString());
-        }
-
-        {
-            Object[] record = records.get(3);
-            assertEquals("{\"k\":\"v\"}", record[5].toString());
-        }
-
-        {
-            Object[] record = records.get(4);
-            assertEquals("{\"k\":\"2015-02-03 08:13:45\"}", record[5].toString());
-        }
-    }
-
-    private List<Object[]> getRecords(ConfigSource config, MockPageOutput output)
-    {
-        Schema schema = config.getNested("parser").loadConfig(CsvParserPlugin.PluginTask.class).getSchemaConfig().toSchema();
-        return Pages.toObjects(schema, output.pages);
     }
 }
