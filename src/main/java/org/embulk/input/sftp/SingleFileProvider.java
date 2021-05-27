@@ -1,17 +1,16 @@
 package org.embulk.input.sftp;
 
-import com.google.common.base.Throwables;
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemException;
 import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
-import org.embulk.spi.Exec;
-import org.embulk.spi.util.InputStreamFileInput;
-import org.embulk.spi.util.InputStreamFileInput.InputStreamWithHints;
-import org.embulk.spi.util.RetryExecutor.RetryGiveupException;
-import org.embulk.spi.util.RetryExecutor.Retryable;
+import org.embulk.util.file.InputStreamFileInput;
+import org.embulk.util.file.InputStreamFileInput.InputStreamWithHints;
+import org.embulk.util.retryhelper.RetryExecutor;
+import org.embulk.util.retryhelper.RetryGiveupException;
+import org.embulk.util.retryhelper.Retryable;
 import org.slf4j.Logger;
-import static org.embulk.spi.util.RetryExecutor.retryExecutor;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
@@ -25,7 +24,7 @@ public class SingleFileProvider
     private final Iterator<String> iterator;
     private final int maxConnectionRetry;
     private boolean opened = false;
-    private final Logger log = Exec.getLogger(SingleFileProvider.class);
+    private final Logger log = LoggerFactory.getLogger(SingleFileProvider.class);
 
     public SingleFileProvider(PluginTask task, int taskIndex, StandardFileSystemManager manager, FileSystemOptions fsOptions)
     {
@@ -45,10 +44,11 @@ public class SingleFileProvider
         final String key = iterator.next();
 
         try {
-            return retryExecutor()
+            return RetryExecutor.builder()
                     .withRetryLimit(maxConnectionRetry)
-                    .withInitialRetryWait(500)
-                    .withMaxRetryWait(30 * 1000)
+                    .withInitialRetryWaitMillis(500)
+                    .withMaxRetryWaitMillis(30 * 1000)
+                    .build()
                     .runInterruptible(new Retryable<InputStreamWithHints>() {
                         @Override
                         public InputStreamWithHints call() throws FileSystemException
@@ -90,7 +90,7 @@ public class SingleFileProvider
                     });
         }
         catch (RetryGiveupException ex) {
-            throw Throwables.propagate(ex.getCause());
+            throw new RuntimeException(ex.getCause());
         }
         catch (InterruptedException ex) {
             throw new InterruptedIOException();

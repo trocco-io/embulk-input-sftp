@@ -1,8 +1,6 @@
 package org.embulk.input.sftp;
 
-import com.google.common.base.Throwables;
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemException;
 import org.apache.commons.vfs2.FileSystemOptions;
@@ -16,11 +14,13 @@ import org.embulk.config.ConfigException;
 import org.embulk.config.TaskReport;
 import org.embulk.spi.Exec;
 import org.embulk.spi.TransactionalFileInput;
-import org.embulk.spi.unit.LocalFile;
-import org.embulk.spi.util.InputStreamFileInput;
-import org.embulk.spi.util.RetryExecutor.RetryGiveupException;
-import org.embulk.spi.util.RetryExecutor.Retryable;
+import org.embulk.util.config.units.LocalFile;
+import org.embulk.util.file.InputStreamFileInput;
+import org.embulk.util.retryhelper.RetryExecutor;
+import org.embulk.util.retryhelper.RetryGiveupException;
+import org.embulk.util.retryhelper.Retryable;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,18 +31,16 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-import static org.embulk.spi.util.RetryExecutor.retryExecutor;
-
 public class SftpFileInput
         extends InputStreamFileInput
         implements TransactionalFileInput
 {
-    private static final Logger log = Exec.getLogger(SftpFileInput.class);
+    private static final Logger log = LoggerFactory.getLogger(SftpFileInput.class);
     private static boolean isMatchLastKey = false;
 
     public SftpFileInput(PluginTask task, int taskIndex)
     {
-        super(task.getBufferAllocator(), new SingleFileProvider(task, taskIndex, initializeStandardFileSystemManager(), initializeFsOptions(task)));
+        super(Exec.getBufferAllocator(), new SingleFileProvider(task, taskIndex, initializeStandardFileSystemManager(), initializeFsOptions(task)));
     }
 
     public void abort()
@@ -51,7 +49,7 @@ public class SftpFileInput
 
     public TaskReport commit()
     {
-        return Exec.newTaskReport();
+        return SftpFileInputPlugin.CONFIG_MAPPER_FACTORY.newTaskReport();
     }
 
     @Override
@@ -73,7 +71,7 @@ public class SftpFileInput
             manager.init();
         }
         catch (FileSystemException ex) {
-            Throwables.propagate(ex);
+            throw new RuntimeException(ex);
         }
 
         return manager;
@@ -132,7 +130,7 @@ public class SftpFileInput
             }
         }
         catch (FileSystemException ex) {
-            Throwables.propagate(ex);
+            throw new RuntimeException(ex);
         }
 
         return fsOptions;
@@ -176,7 +174,7 @@ public class SftpFileInput
             else {
                 String uriString = uri.get();
                 String scheme = UriParser.extractScheme(uriString);
-                if (StringUtils.isEmpty(scheme)) {
+                if (scheme == null || scheme.isEmpty()) {
                     return GenericFileNameParser.getInstance().parseUri(null, null, uriString).getPath();
                 }
                 else if (scheme.equals("sftp")) {
@@ -198,10 +196,11 @@ public class SftpFileInput
         int maxConnectionRetry = task.getMaxConnectionRetry();
 
         try {
-            return retryExecutor()
+            return RetryExecutor.builder()
                     .withRetryLimit(maxConnectionRetry)
-                    .withInitialRetryWait(500)
-                    .withMaxRetryWait(30 * 1000)
+                    .withInitialRetryWaitMillis(500)
+                    .withMaxRetryWaitMillis(30 * 1000)
+                    .build()
                     .runInterruptible(new Retryable<FileList>() {
                         @Override
                         public FileList call() throws IOException
@@ -300,10 +299,10 @@ public class SftpFileInput
                     });
         }
         catch (RetryGiveupException ex) {
-            throw Throwables.propagate(ex.getCause());
+            throw new RuntimeException(ex.getCause());
         }
         catch (InterruptedException ex) {
-            throw Throwables.propagate(ex);
+            throw new RuntimeException(ex);
         }
     }
 
