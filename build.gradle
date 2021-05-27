@@ -160,6 +160,10 @@ gem {
     summary = "SFTP file input plugin for Embulk"
     homepage = "https://github.com/embulk/embulk-input-sftp"
     licenses = [ "Apache-2.0" ]
+
+    from rootProject.file("LICENSE")
+    from rootProject.file("NOTICE_GEM")
+    rename ("NOTICE_GEM", "NOTICE")
 }
 
 gemPush {
