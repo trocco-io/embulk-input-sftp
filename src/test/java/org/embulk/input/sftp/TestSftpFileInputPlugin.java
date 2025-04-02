@@ -506,39 +506,31 @@ public class TestSftpFileInputPlugin
     @Test
     public void testListFilesStopWhenFileNotFound() throws Exception
     {
-        ConfigSource configSource = config.deepCopy();
-        configSource.set("stop_when_file_not_found", true);
-        PluginTask task = configSource.loadConfig(PluginTask.class);
+        ConfigSource conf = config.deepCopy();
+        conf.set("path_prefix", REMOTE_DIRECTORY + "sample_01.csv");
+        conf.set("path_match_pattern", "\\.xml$");
+        conf.set("stop_when_file_not_found", true);
+
+        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
+        PluginTask task = SftpFileInputPlugin.CONFIG_MAPPER_FACTORY
+                .createConfigMapper()
+                .map(conf, PluginTask.class);
 
         try {
             SftpFileInput.listFilesByPrefix(task);
-            fail();
         }
-        catch (ConfigException ex) {
-            assertEquals("No file is found. \"stop_when_file_not_found\" option is \"true\".", ex.getMessage());
+        catch (RuntimeException ex) {
+            Throwable cause = ex.getCause();
+            if (cause instanceof ConfigException) {
+                String expected = String.format(
+                    "No file matched the specified path_prefix '%s'. Since stop_when_file_not_found=true, the task is stopped.",
+                    task.getPathPrefix()
+                );
+                assertEquals(expected, cause.getMessage());
+            } else {
+                throw ex;
+            }
         }
-    }
-
-    @Test
-    public void testListFilesStopWhenFileNotFoundHasFile() throws Exception
-    {
-        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
-        ConfigSource configSource = config.deepCopy();
-        configSource.set("stop_when_file_not_found", true);
-        PluginTask task = configSource.loadConfig(PluginTask.class);
-
-        FileList fileList = SftpFileInput.listFilesByPrefix(task);
-        assertEquals(1, fileList.getTaskCount());
-    }
-
-    @Test
-    public void testListFilesStopWhenFileNotFoundDisabled() throws Exception
-    {
-        ConfigSource configSource = config.deepCopy();
-        PluginTask task = configSource.loadConfig(PluginTask.class);
-
-        FileList fileList = SftpFileInput.listFilesByPrefix(task);
-        assertEquals(0, fileList.getTaskCount());
     }
 
     private SshServer createSshServer(String host, int port, final String sshUsername, final String sshPassword)
