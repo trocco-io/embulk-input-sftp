@@ -26,6 +26,7 @@ embulk-input-sftp v0.3.0+ requires Embulk v0.9.12+
 - **path_match_pattern**: regexp to match file paths. If a file path doesn't match with this pattern, the file will be skipped (regexp string, optional)
 - **total_file_count_limit**: maximum number of files to read (integer, optional)
 - **min_task_size (experimental)**: minimum size of a task. If this is larger than 0, one task includes multiple input files. This is useful if too many number of tasks impacts performance of output or executor plugins badly. (integer, optional)
+- **stop_when_file_not_found**: if true, check existence of files (boolean, default false)
 
 ### Proxy configuration
 

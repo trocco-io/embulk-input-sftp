@@ -62,6 +62,10 @@ public interface PluginTask
     @ConfigDefault("null")
     Optional<ProxyTask> getProxy();
 
+    @Config("stop_when_file_not_found")
+    @ConfigDefault("false")
+    boolean getStopWhenFileNotFound();
+
     FileList getFiles();
     void setFiles(FileList files);
 

@@ -252,6 +252,12 @@ public class SftpFileInput
                                         }
                                     }
                                 }
+
+                                FileList fileList = builder.build();
+                                if (stopWhenFileNotFound && fileList.isEmpty()) {
+                                    throw new ConfigException("No file is found.");
+                                }
+
                                 return builder.build();
                             }
                             finally {
