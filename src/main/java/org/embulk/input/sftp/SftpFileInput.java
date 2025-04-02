@@ -254,11 +254,11 @@ public class SftpFileInput
                                 }
 
                                 FileList fileList = builder.build();
-                                if (stopWhenFileNotFound && fileList.isEmpty()) {
-                                    throw new ConfigException("No file is found.");
+                                if (task.getStopWhenFileNotFound() && fileList.getTaskCount() == 0) {
+                                    throw new ConfigException("No file is found. \"stop_when_file_not_found\" option is \"true\".");
                                 }
 
-                                return builder.build();
+                                return fileList;
                             }
                             finally {
                                 if (manager != null) {
