@@ -510,9 +510,13 @@ public class TestSftpFileInputPlugin
         configSource.set("stop_when_file_not_found", true);
         PluginTask task = configSource.loadConfig(PluginTask.class);
 
-        exception.expect(ConfigException.class);
-        exception.expectMessage("No file is found. \"stop_when_file_not_found\" option is \"true\".");
-        SftpFileInput.listFilesByPrefix(task);
+        try {
+            SftpFileInput.listFilesByPrefix(task);
+            fail();
+        }
+        catch (ConfigException ex) {
+            assertEquals("No file is found. \"stop_when_file_not_found\" option is \"true\".", ex.getMessage());
+        }
     }
 
     @Test
@@ -530,7 +534,6 @@ public class TestSftpFileInputPlugin
     @Test
     public void testListFilesStopWhenFileNotFoundDisabled() throws Exception
     {
-
         ConfigSource configSource = config.deepCopy();
         PluginTask task = configSource.loadConfig(PluginTask.class);
 
