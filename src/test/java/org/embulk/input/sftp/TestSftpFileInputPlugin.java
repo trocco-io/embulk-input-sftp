@@ -503,6 +503,41 @@ public class TestSftpFileInputPlugin
                 (0).get(0));
     }
 
+    @Test
+    public void testListFilesStopWhenFileNotFound() throws Exception
+    {
+        ConfigSource configSource = config.deepCopy();
+        configSource.set("stop_when_file_not_found", true);
+        PluginTask task = configSource.loadConfig(PluginTask.class);
+
+        exception.expect(ConfigException.class);
+        exception.expectMessage("No file is found. \"stop_when_file_not_found\" option is \"true\".");
+        SftpFileInput.listFilesByPrefix(task);
+    }
+
+    @Test
+    public void testListFilesStopWhenFileNotFoundHasFile() throws Exception
+    {
+        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
+        ConfigSource configSource = config.deepCopy();
+        configSource.set("stop_when_file_not_found", true);
+        PluginTask task = configSource.loadConfig(PluginTask.class);
+
+        FileList fileList = SftpFileInput.listFilesByPrefix(task);
+        assertEquals(1, fileList.getTaskCount());
+    }
+
+    @Test
+    public void testListFilesStopWhenFileNotFoundDisabled() throws Exception
+    {
+
+        ConfigSource configSource = config.deepCopy();
+        PluginTask task = configSource.loadConfig(PluginTask.class);
+
+        FileList fileList = SftpFileInput.listFilesByPrefix(task);
+        assertEquals(0, fileList.getTaskCount());
+    }
+
     private SshServer createSshServer(String host, int port, final String sshUsername, final String sshPassword)
     {
         // setup a mock sftp server
