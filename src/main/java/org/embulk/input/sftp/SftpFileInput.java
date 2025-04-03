@@ -267,7 +267,15 @@ public class SftpFileInput
                                         }
                                     }
                                 }
-                                return builder.build();
+                                FileList fileList = builder.build();
+                                if (task.getStopWhenFileNotFound() && fileList.getTaskCount() == 0) {
+                                    throw new ConfigException(String.format(
+                                        "No file matched the specified path_prefix '%s'. Since stop_when_file_not_found=true, the task is stopped.",
+                                        task.getPathPrefix()
+                                    ));
+                                }
+
+                                return fileList;
                             }
                             finally {
                                 if (manager != null) {
