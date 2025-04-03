@@ -614,10 +614,7 @@ public class TestSftpFileInputPlugin
         catch (RuntimeException ex) {
             Throwable cause = ex.getCause();
             if (cause instanceof ConfigException) {
-                String expected = String.format(
-                    "No file matched the specified path_prefix '%s'. Since stop_when_file_not_found=true, the task is stopped.",
-                    task.getPathPrefix()
-                );
+                String expected = "No file is found. \"stop_when_file_not_found\" option is \"true\".";
                 assertEquals(expected, cause.getMessage());
             } else {
                 throw ex;
