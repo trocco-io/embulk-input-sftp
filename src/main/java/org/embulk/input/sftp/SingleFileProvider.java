@@ -70,6 +70,7 @@ public class SingleFileProvider
                         public InputStreamWithHints call() throws FileSystemException
                         {
                             FileObject file = manager.resolveFile(key, fsOptions);
+                            log.info("file name {}, last modified time {}, size {}", file.getPublicURIString(), file.getContent().getLastModifiedTime(), file.getContent().getSize());
                             return new InputStreamWithHints(
                                     file.getContent().getInputStream(), file.getPublicURIString());
                         }
