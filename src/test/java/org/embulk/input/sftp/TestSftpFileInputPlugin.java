@@ -595,6 +595,33 @@ public class TestSftpFileInputPlugin
                 (0).get(0));
     }
 
+    @Test
+    public void testListFilesStopWhenFileNotFound() throws Exception
+    {
+        ConfigSource conf = config.deepCopy();
+        conf.set("path_prefix", REMOTE_DIRECTORY + "sample_01.csv");
+        conf.set("path_match_pattern", "\\.xml$");
+        conf.set("stop_when_file_not_found", true);
+
+        uploadFile(Resources.getResource("sample_01.csv").getPath(), REMOTE_DIRECTORY + "sample_01.csv", true);
+        PluginTask task = SftpFileInputPlugin.CONFIG_MAPPER_FACTORY
+                .createConfigMapper()
+                .map(conf, PluginTask.class);
+
+        try {
+            SftpFileInput.listFilesByPrefix(task);
+        }
+        catch (RuntimeException ex) {
+            Throwable cause = ex.getCause();
+            if (cause instanceof ConfigException) {
+                String expected = "No file is found. \"stop_when_file_not_found\" option is \"true\".";
+                assertEquals(expected, cause.getMessage());
+            } else {
+                throw ex;
+            }
+        }
+    }
+
     private SshServer createSshServer(String host, int port, final String sshUsername, final String sshPassword)
     {
         // setup a mock sftp server
