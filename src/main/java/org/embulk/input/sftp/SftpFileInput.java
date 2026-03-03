@@ -257,13 +257,20 @@ public class SftpFileInput
                                 else {
                                     // path_prefix is neither file or folder, then we scan the parent folder to file path
                                     // that match the path_prefix basename
-                                    FileObject parent = files.getParent();
-                                    FileObject[] children = parent.getChildren();
-                                    Arrays.sort(children);
                                     String fileName = FilenameUtils.getName(task.getPathPrefix());
-                                    for (FileObject f : children) {
-                                        if (f.isFile()) {
-                                            addFileToList(builder, f.toString(), f.getContent().getSize(), fileName, lastKey);
+                                    if (fileName.isEmpty()) {
+                                        // path_prefix ends with '/' (e.g. "/path/to/dir/") but the directory does not exist.
+                                        // No files should be listed, consistent with S3 behavior.
+                                        log.info("path_prefix '{}' indicates a directory that does not exist. No files will be listed.", task.getPathPrefix());
+                                    }
+                                    else {
+                                        FileObject parent = files.getParent();
+                                        FileObject[] children = parent.getChildren();
+                                        Arrays.sort(children);
+                                        for (FileObject f : children) {
+                                            if (f.isFile()) {
+                                                addFileToList(builder, f.toString(), f.getContent().getSize(), fileName, lastKey);
+                                            }
                                         }
                                     }
                                 }
